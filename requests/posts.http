@@ -1,0 +1,56 @@
+@baseUrl = http://localhost:3000/api
+@token = TU_TOKEN_AQUI
+
+### ========================================
+### 🌍 OBTENER FEED PÚBLICO GLOBLAL (GET)
+### ========================================
+GET {{baseUrl}}/posts
+
+### ========================================
+### 🌍 OBTENER FEED CON FILTROS (GET)
+### ========================================
+GET {{baseUrl}}/posts?country=Australia&category=Trabajo
+
+### ========================================
+### 📢 CREAR UN AVISO NUEVO (POST Form-Data)
+### Requiere multipart/form-data. Desde REST Client
+### es más fácil testear subida de imágenes con Postman.
+### Pero aquí un ejemplo con boundary = form_boundary:
+### ========================================
+POST {{baseUrl}}/posts
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=form_boundary
+
+--form_boundary
+Content-Disposition: form-data; name="title"
+
+Se arrienda pieza en Sídney
+--form_boundary
+Content-Disposition: form-data; name="description"
+
+Descripción del post, centro de Sídney, a pasos del tren.
+--form_boundary
+Content-Disposition: form-data; name="duration_days"
+
+15
+--form_boundary
+Content-Disposition: form-data; name="country_id"
+
+1
+--form_boundary
+Content-Disposition: form-data; name="category_id"
+
+1
+--form_boundary--
+
+### ========================================
+### 🎯 OBTENER FEED "PARA TI" (GET Inteligente)
+### ========================================
+GET {{baseUrl}}/posts/feed
+Authorization: Bearer {{token}}
+
+### ========================================
+### 🗑️ BORRAR MI PROPIO POST (DELETE)
+### ========================================
+DELETE {{baseUrl}}/posts/1
+Authorization: Bearer {{token}}

@@ -24,12 +24,29 @@ export const register = async (req, res) => {
 
     // Insertar el usuario en la BD
     const newUser = await pool.query(
-      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
+      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role, avatar_url, bio, instagram_handle',
       [name, email, hashedPassword, 'user']
     );
 
-    // Devolver un código 201 de creado junto con la info (sin la contraseña encriptada)
-    return res.status(201).json(newUser.rows[0]);
+    const userData = newUser.rows[0];
+
+    // Generar Token JWT con una duración de 1 hora
+    const payload = { id: userData.id, email: userData.email, role: userData.role };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Preparar el usuario para ser retornado al Frontend (para llenar el Contexto)
+    const userToFront = { 
+      id: userData.id, 
+      name: userData.name, 
+      email: userData.email, 
+      role: userData.role,
+      avatar: userData.avatar_url || null,
+      bio: userData.bio || null,
+      instagram_handle: userData.instagram_handle || null
+    };
+
+    // Devolver un código 201 de creado junto con el token de auto-login
+    return res.status(201).json({ token, user: userToFront });
   } catch (error) {
     console.error('Error en register:', error);
     return res.status(500).json({ error: 'Error del servidor al registrar' });
@@ -53,6 +70,11 @@ export const login = async (req, res) => {
 
     const userData = user.rows[0];
 
+    // Verificar si el usuario ha sido baneado (soft delete) por el admin
+    if (!userData.is_active) {
+      return res.status(403).json({ error: 'Tu cuenta ha sido suspendida por el administrador' });
+    }
+
     // Comparar contraseña plana con el hash guardado en BD
     const validPassword = await bcryptjs.compare(password, userData.password);
     if (!validPassword) {
@@ -63,8 +85,19 @@ export const login = async (req, res) => {
     const payload = { id: userData.id, email: userData.email, role: userData.role };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    // Devolver el token generado
-    return res.status(200).json({ token });
+    // Preparar el usuario para ser retornado al Frontend (para llenar el Contexto)
+    const userToFront = { 
+      id: userData.id, 
+      name: userData.name, 
+      email: userData.email, 
+      role: userData.role,
+      avatar: userData.avatar_url || null,
+      bio: userData.bio || null,
+      instagram_handle: userData.instagram_handle || null
+    };
+
+    // Devolver el token generado y los datos sin revelar la contraseña
+    return res.status(200).json({ token, user: userToFront });
   } catch (error) {
     console.error('Error en login:', error);
     return res.status(500).json({ error: 'Error del servidor al iniciar sesión' });

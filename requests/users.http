@@ -1,0 +1,44 @@
+@baseUrl = http://localhost:3000/api
+@token = TU_TOKEN_AQUI
+
+### ========================================
+### 👤 OBTENER MI PERFIL (GET)
+### ========================================
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{token}}
+
+### ========================================
+### ✏️ ACTUALIZAR MI PERFIL (PUT)
+### ========================================
+PUT {{baseUrl}}/users/me
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Nuevo Nombre Testing"
+}
+
+### ========================================
+### 📝 MIS AVISOS PUBLICADOS (GET)
+### ========================================
+GET {{baseUrl}}/users/me/posts
+Authorization: Bearer {{token}}
+
+### ========================================
+### 💖 OBTENER MIS FAVORITOS (GET)
+### ========================================
+GET {{baseUrl}}/users/me/favorites
+Authorization: Bearer {{token}}
+
+### ========================================
+### ➕ AÑADIR A FAVORITOS (POST)
+### (Cambia el 1 por el ID de un post real)
+### ========================================
+POST {{baseUrl}}/users/me/favorites/1
+Authorization: Bearer {{token}}
+
+### ========================================
+### ➖ ELIMINAR DE FAVORITOS (DELETE)
+### ========================================
+DELETE {{baseUrl}}/users/me/favorites/1
+Authorization: Bearer {{token}}

@@ -1,65 +1,77 @@
--- Crear base de datos
--- CREATE DATABASE woho;
--- \c woho;
+-- ==========================================
+-- SCRIPT DE MIGRACIÓN: BASE DE DATOS WOHO
+-- Motor: PostgreSQL
+-- ==========================================
 
--- Tabla de usuarios
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  email VARCHAR(100) UNIQUE NOT NULL,
-  password VARCHAR(255) NOT NULL,
-  role VARCHAR(20) DEFAULT 'user' -- Puede ser 'user', 'admin', 'superadmin'
+-- 1. Tabla de Usuarios
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    avatar_url TEXT,
+    phone_whatsapp VARCHAR(20),
+    instagram_handle VARCHAR(50),
+    facebook_url TEXT,
+    bio TEXT,
+    role VARCHAR(20) DEFAULT 'user',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabla de países
-CREATE TABLE IF NOT EXISTS countries (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(100) UNIQUE NOT NULL
+-- 2. Tabla de Categorías (Ej: Trabajo, Alojamiento, Social)
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL
 );
 
--- Tabla de ciudades relacionadas con países
-CREATE TABLE IF NOT EXISTS cities (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  country_id INTEGER REFERENCES countries(id) ON DELETE CASCADE
+-- 3. Tabla de Países (Destinos Principales)
+CREATE TABLE countries (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    flag VARCHAR(10),
+    description TEXT,
+    image_url TEXT
 );
 
--- Tabla de categorías para los posts
-CREATE TABLE IF NOT EXISTS categories (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(100) UNIQUE NOT NULL
+-- 4. Tabla de Ciudades (Dependen de un País)
+CREATE TABLE cities (
+    id SERIAL PRIMARY KEY,
+    country_id INTEGER NOT NULL REFERENCES countries(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL
 );
 
--- Tabla de posts (avisos)
-CREATE TABLE IF NOT EXISTS posts (
-  id SERIAL PRIMARY KEY,
-  title VARCHAR(255) NOT NULL,
-  description TEXT NOT NULL,
-  duration_days INTEGER NOT NULL,
-  expires_at DATE NOT NULL,
-  images JSONB, -- Array de URLs de imágenes
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  country_id INTEGER REFERENCES countries(id) ON DELETE SET NULL,
-  city_id INTEGER REFERENCES cities(id) ON DELETE SET NULL,
-  category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- 5. Tabla Central: Avisos / Publicaciones (Posts)
+CREATE TABLE posts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id INTEGER NOT NULL REFERENCES categories(id),
+    country_id INTEGER REFERENCES countries(id) ON DELETE SET NULL,
+    city_id INTEGER REFERENCES cities(id) ON DELETE SET NULL,
+    title VARCHAR(150) NOT NULL,
+    description TEXT NOT NULL,
+    price NUMERIC(10,2),
+    images JSONB,
+    duration_days INTEGER,
+    expires_at TIMESTAMP NULL,
+    is_active BOOLEAN DEFAULT true,
+    is_pinned BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabla de favoritos (relación N:M entre usuarios y posts)
-CREATE TABLE IF NOT EXISTS favorites (
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
-  PRIMARY KEY (user_id, post_id)
+-- 6. Tabla de Favoritos (Relación de Muchos a Muchos)
+CREATE TABLE favorites (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    UNIQUE (user_id, post_id) -- Evita que un usuario le de like 2 veces al mismo post
 );
 
--- Tabla de seguimiento (relación N:M entre usuarios) - "Para Ti" Feed
-CREATE TABLE IF NOT EXISTS user_follows (
-  follower_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  followed_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  PRIMARY KEY (follower_id, followed_id)
+-- 7. Tabla de Lugares Seguidos (Feed "Para Ti")
+CREATE TABLE user_follows (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    country_id INTEGER NOT NULL REFERENCES countries(id) ON DELETE CASCADE,
+    city_id INTEGER REFERENCES cities(id) ON DELETE CASCADE,
+    UNIQUE (user_id, country_id, city_id) -- Evita seguimientos duplicados
 );
-
--- Insertar algunos datos base de ejemplo (opcional)
-INSERT INTO countries (name) VALUES ('Australia'), ('Nueva Zelanda') ON CONFLICT DO NOTHING;
-INSERT INTO cities (name, country_id) VALUES ('Sídney', 1), ('Melbourne', 1), ('Auckland', 2) ON CONFLICT DO NOTHING;
-INSERT INTO categories (name) VALUES ('Alojamiento'), ('Trabajo'), ('Venta de Auto') ON CONFLICT DO NOTHING;

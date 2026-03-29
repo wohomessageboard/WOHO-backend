@@ -1,0 +1,56 @@
+@baseUrl = http://localhost:3000/api
+@adminToken = PON_AQUÍ_EL_TOKEN_CON_ROL_ADMIN_O_SUPERADMIN
+
+### ========================================
+### 📊 DASHBOARD: ESTADÍSTICAS VIP (GET)
+### ========================================
+GET {{baseUrl}}/admin/stats
+Authorization: Bearer {{adminToken}}
+
+### ========================================
+### 👥 LISTAR TODOS LOS USUARIOS (GET)
+### ========================================
+GET {{baseUrl}}/admin/users
+Authorization: Bearer {{adminToken}}
+
+### ========================================
+### 🚔 BANEAR / SUSPENDER USUARIO (PUT)
+### (Oculta sus acciones y le impide loguearse)
+### ========================================
+PUT {{baseUrl}}/admin/users/1/ban
+Authorization: Bearer {{adminToken}}
+
+### ========================================
+### 🚀 CREAR PAÍS COMO ADMIN (POST)
+### ========================================
+POST {{baseUrl}}/admin/countries
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Japón",
+  "flag": "🇯🇵",
+  "description": "Viaja al país nipón.",
+  "image_url": "https://url_de_la_imagen_del_fuji.jpg"
+}
+
+### ========================================
+### 📢 OBTENER POSTS SIN FILTROS FRONTEND (GET)
+### Trae incluso posts Inactivos o Expirados para moderar
+### ========================================
+GET {{baseUrl}}/admin/posts
+Authorization: Bearer {{adminToken}}
+
+### ========================================
+### 📌 FIJAR POST A LA PORTADA (PUT)
+### ⚠️ ESTO REQUIERE SER SUPERADMIN ⚠️
+### ========================================
+PUT {{baseUrl}}/admin/posts/1/pin
+Authorization: Bearer {{adminToken}}
+
+### ========================================
+### 🗑️ BORRADO DEFINITIVO DE USUARIO (DELETE)
+### ⚠️ ESTO REQUIERE SER SUPERADMIN ⚠️
+### ========================================
+DELETE {{baseUrl}}/admin/users/2
+Authorization: Bearer {{adminToken}}

@@ -17,14 +17,16 @@ export const getPosts = async (req, res) => {
     const { country, city, category } = req.query;
 
     let query = `
-      SELECT p.id, p.title, p.description, p.duration_days, p.expires_at, p.images, p.created_at,
-             u.name as author_name, c.name as country_name, ci.name as city_name, cat.name as category_name
+      SELECT p.id, p.title, p.description, p.duration_days, p.expires_at, p.images, p.created_at, p.is_pinned,
+             u.name as author_name, c.name as country_name, ci.name as city_name, cat.name as category_name,
+             cat.name as type, c.name as country, ci.name as city
       FROM posts p
       JOIN users u ON p.user_id = u.id
       LEFT JOIN countries c ON p.country_id = c.id
       LEFT JOIN cities ci ON p.city_id = ci.id
       LEFT JOIN categories cat ON p.category_id = cat.id
-      WHERE 1=1 AND p.expires_at >= CURRENT_DATE
+      WHERE p.is_active = true 
+        AND (p.expires_at >= CURRENT_DATE OR p.expires_at IS NULL)
     `;
 
     const values = [];
@@ -47,7 +49,7 @@ export const getPosts = async (req, res) => {
       count++;
     }
 
-    query += ` ORDER BY p.created_at DESC`;
+    query += ` ORDER BY p.is_pinned DESC, p.expires_at ASC NULLS LAST, p.created_at DESC`;
 
     const result = await pool.query(query, values);
     return res.status(200).json(result.rows);
@@ -57,14 +59,64 @@ export const getPosts = async (req, res) => {
   }
 };
 
+// Obtener un post por ID (GET /api/posts/:id)
+export const getPostById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const query = `
+      SELECT p.id, p.title, p.description, p.duration_days, p.expires_at, p.images, p.created_at, p.is_pinned,
+             p.user_id, u.name as author_name, u.email as author_email, u.phone_whatsapp as author_phone, u.avatar_url as author_avatar,
+             c.name as country_name, ci.name as city_name, cat.name as category_name, cat.name as type
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      LEFT JOIN countries c ON p.country_id = c.id
+      LEFT JOIN cities ci ON p.city_id = ci.id
+      LEFT JOIN categories cat ON p.category_id = cat.id
+      WHERE p.id = $1
+    `;
+    const result = await pool.query(query, [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Post no encontrado' });
+    }
+
+    // Adaptar nombres para el frontend
+    const postData = result.rows[0];
+    const formattedPost = {
+      ...postData,
+      country: postData.country_name,
+      city: postData.city_name,
+      owner: {
+        id: postData.user_id,
+        name: postData.author_name,
+        email: postData.author_email,
+        phone: postData.author_phone,
+        avatar: postData.author_avatar
+      }
+    };
+
+    return res.status(200).json(formattedPost);
+  } catch (error) {
+    console.error('Error en getPostById:', error);
+    return res.status(500).json({ error: 'Error interno obteniendo detalle del post' });
+  }
+};
+
 // Crear un Post (POST /api/posts) Privado con subida de imágenes y cálculo de fecha
 export const createPost = async (req, res) => {
   try {
     const { title, description, duration_days, country_id, city_id, category_id } = req.body;
     const user_id = req.user.id;
+    const user_role = req.user.role;
 
-    if (!title || !description || !duration_days) {
-      return res.status(400).json({ error: 'Título, descripción y días de duración son obligatorios' });
+    // Validación básica general
+    if (!title || !description) {
+      return res.status(400).json({ error: 'Título y descripción son obligatorios' });
+    }
+
+    // Validación según Rol
+    if (user_role === 'user' && !duration_days) {
+      return res.status(400).json({ error: 'La duración es requerida para viajeros' });
     }
 
     // Subir imágenes a Cloudinary usando el buffer en memoria de multer
@@ -96,13 +148,27 @@ export const createPost = async (req, res) => {
     // Lo guardamos como string JSON
     const imagesJSON = JSON.stringify(uploadedImagesUrls);
 
-    // Calcular la fecha de expiración mediante la función en la BBDD a través de CURRENT_DATE
-    const result = await pool.query(
-      `INSERT INTO posts (title, description, duration_days, expires_at, images, user_id, country_id, city_id, category_id)
-       VALUES ($1, $2, $3, CURRENT_DATE + CAST($3 AS INTEGER), $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [title, description, duration_days, imagesJSON, user_id, country_id || null, city_id || null, category_id || null]
-    );
+    // Calcular la consulta dinámica para permitir Nulls en Admins
+    let queryString = '';
+    let queryValues = [];
+
+    if (duration_days) {
+      // Tiene expiración (Users estándar o Admins que decidieron poner duración)
+      queryString = `
+        INSERT INTO posts (title, description, duration_days, expires_at, images, user_id, country_id, city_id, category_id)
+        VALUES ($1, $2, $3, CURRENT_DATE + CAST($3 AS INTEGER), $4, $5, $6, $7, $8)
+        RETURNING *`;
+      queryValues = [title, description, duration_days, imagesJSON, user_id, country_id || null, city_id || null, category_id || null];
+    } else {
+      // No tiene duración (Solo alcanzable por Admin/Superadmin debido a validación superior)
+      queryString = `
+        INSERT INTO posts (title, description, duration_days, expires_at, images, user_id, country_id, city_id, category_id)
+        VALUES ($1, $2, NULL, NULL, $3, $4, $5, $6, $7)
+        RETURNING *`;
+      queryValues = [title, description, imagesJSON, user_id, country_id || null, city_id || null, category_id || null];
+    }
+
+    const result = await pool.query(queryString, queryValues);
 
     return res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -116,18 +182,25 @@ export const getFeed = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Seleccionar posts de los usuarios que el usuario logueado sigue
+    // Seleccionar posts basados en los países y ciudades que sigue el usuario
     const query = `
-      SELECT p.id, p.title, p.description, p.duration_days, p.expires_at, p.images, p.created_at,
-             u.name as author_name, c.name as country_name, ci.name as city_name, cat.name as category_name
+      SELECT p.id, p.title, p.description, p.duration_days, p.expires_at, p.images, p.created_at, p.is_pinned,
+             u.name as author_name, c.name as country_name, ci.name as city_name, cat.name as category_name,
+             cat.name as type, c.name as country, ci.name as city
       FROM posts p
       JOIN users u ON p.user_id = u.id
       LEFT JOIN countries c ON p.country_id = c.id
       LEFT JOIN cities ci ON p.city_id = ci.id
       LEFT JOIN categories cat ON p.category_id = cat.id
-      JOIN user_follows uf ON p.user_id = uf.followed_id
-      WHERE uf.follower_id = $1 AND p.expires_at >= CURRENT_DATE
-      ORDER BY p.created_at DESC
+      WHERE p.is_active = true
+        AND (p.expires_at >= CURRENT_DATE OR p.expires_at IS NULL)
+        AND EXISTS (
+          SELECT 1 FROM user_follows uf
+          WHERE uf.user_id = $1
+            AND uf.country_id = p.country_id
+            AND (uf.city_id IS NULL OR uf.city_id = p.city_id)
+        )
+      ORDER BY p.is_pinned DESC, p.expires_at ASC NULLS LAST, p.created_at DESC
     `;
 
     const result = await pool.query(query, [userId]);

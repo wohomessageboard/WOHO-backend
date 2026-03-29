@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import usersRoutes from './routes/users.routes.js';
 import postsRoutes from './routes/posts.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import dataRoutes from './routes/data.routes.js';
 
 dotenv.config();
 
@@ -15,10 +17,12 @@ app.use(cors());          // Permitir llamadas CORS para conexión entre el Fron
 app.use(express.json());  // Para parsear el body JSON
 
 // Registrar las Rutas
-// Se separa la lógica en dominios con una base de ruta para la API REST
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/posts', postsRoutes);
+app.use('/api', dataRoutes);
+// Rutas exclusivas del Panel VIP
+app.use('/api/admin', adminRoutes);
 
 // Ruta por defecto con 404
 app.use((req, res) => {

@@ -1,0 +1,27 @@
+### Archivo de pruebas para la extensión REST Client (VS Code) o Thunder Client.
+### Define las variables globales aquí:
+@baseUrl = http://localhost:3000/api
+@token = PON_AQUÍ_EL_TOKEN_DE_RESPUESTA_TRAS_LOGIN
+
+### ========================================
+### 🔓 1. REGISTRO DE USUARIO (POST)
+### ========================================
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Frontend Tester",
+  "email": "testfront@woho.com",
+  "password": "123password"
+}
+
+### ========================================
+### 🔑 2. INICIAR SESIÓN (POST)
+### ========================================
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "testfront@woho.com",
+  "password": "123password"
+}
