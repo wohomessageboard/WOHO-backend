@@ -65,7 +65,8 @@ export const getPostById = async (req, res) => {
     const { id } = req.params;
     const query = `
       SELECT p.id, p.title, p.description, p.duration_days, p.expires_at, p.images, p.created_at, p.is_pinned,
-             p.user_id, u.name as author_name, u.email as author_email, u.phone_whatsapp as author_phone, u.avatar_url as author_avatar,
+             p.user_id, p.category_id, p.country_id, p.city_id,
+             u.name as author_name, u.email as author_email, u.phone_whatsapp as author_phone, u.avatar_url as author_avatar,
              c.name as country_name, ci.name as city_name, cat.name as category_name, cat.name as type
       FROM posts p
       JOIN users u ON p.user_id = u.id
