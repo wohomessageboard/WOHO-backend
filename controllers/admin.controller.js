@@ -68,12 +68,12 @@ export const deleteUser = async (req, res) => {
 // POST /api/admin/countries
 export const createCountry = async (req, res) => {
   try {
-    const { name, flag_emoji, description, photo } = req.body;
+    const { name, flag, description, image } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
 
     const result = await pool.query(
-      'INSERT INTO countries (name, flag_emoji, description, photo) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, flag_emoji, description, photo]
+      'INSERT INTO countries (name, flag, description, image_url) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, flag, description, image]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -85,11 +85,11 @@ export const createCountry = async (req, res) => {
 export const updateCountry = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, flag_emoji, description, photo } = req.body;
+    const { name, flag, description, image } = req.body;
 
     const result = await pool.query(
-      'UPDATE countries SET name = COALESCE($1, name), flag_emoji = COALESCE($2, flag_emoji), description = COALESCE($3, description), photo = COALESCE($4, photo) WHERE id = $5 RETURNING *',
-      [name, flag_emoji, description, photo, id]
+      'UPDATE countries SET name = COALESCE($1, name), flag = COALESCE($2, flag), description = COALESCE($3, description), image_url = COALESCE($4, image_url) WHERE id = $5 RETURNING *',
+      [name, flag, description, image, id]
     );
 
     if (result.rowCount === 0) return res.status(404).json({ error: 'País no encontrado' });
