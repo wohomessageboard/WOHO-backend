@@ -53,8 +53,15 @@ export const uploadUserAvatar = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ error: 'No se envió ninguna imagen o el formato no es válido' });
+    if (!req.file) {
+      return res.status(400).json({ 
+        error: 'No se recibió ningún archivo. Verifica que el campo se llame "avatar" y que esté llegando al servidor.' 
+      });
+    }
+    if (!req.file.buffer) {
+      return res.status(400).json({ 
+        error: 'El archivo llegó pero sin contenido (buffer vacío). Posible fallo de Multer.' 
+      });
     }
 
     // Subir el buffer a Cloudinary usando la función auxiliar

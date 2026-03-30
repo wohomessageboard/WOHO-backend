@@ -38,12 +38,22 @@ export const uploadAvatar = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // Límite de 5 MB (5 * 1024 KB * 1024 bytes)
   fileFilter: (req, file, cb) => {
-    // Solo permitimos estos formatos de imagen
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-    if (allowed.includes(file.mimetype)) {
-      cb(null, true);   // cb = callback. null = sin error, true = aceptar archivo
+    // Convertimos a minúsculas por seguridad
+    const mime = file.mimetype.toLowerCase();
+    // Aceptamos variaciones comunes de PNG y JPG que algunos navegadores antiguos o sistemas envían
+    const allowed = [
+      'image/jpeg', 
+      'image/jpg', 
+      'image/png', 
+      'image/x-png', 
+      'image/pjpeg', 
+      'image/webp'
+    ];
+
+    if (allowed.includes(mime)) {
+      cb(null, true);
     } else {
-      cb(new Error('Formato no permitido. Solo JPG, PNG o WEBP.'));  // Rechazar el archivo
+      cb(new Error('Formato no permitido. Solo JPG, PNG o WEBP.'));
     }
   }
 });
