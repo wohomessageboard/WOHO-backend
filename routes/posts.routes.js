@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getPosts, getPostById, createPost, getFeed, deletePost } from '../controllers/posts.controller.js';
+import { getPosts, getPostById, createPost, updatePost, getFeed, deletePost } from '../controllers/posts.controller.js';
 import { verifyToken, verifyRole } from '../middlewares/auth.middleware.js';
 import { uploadMiddleWare } from '../middlewares/upload.middleware.js';
 import { verifyPostOwnerOrAdmin } from '../middlewares/post.middleware.js';
@@ -19,6 +19,9 @@ router.get('/:id', getPostById);
 // Para el POST, primero verificamos que tenga un JWT válido,
 // luego usamos el middleware de Multer para pre-procesar la data Form-Data e interceptar las imágenes.
 router.post('/', verifyToken, uploadMiddleWare, createPost);
+
+// Editar: requiere token, el middleware de imágenes y ser el dueño
+router.put('/:id', verifyToken, verifyPostOwnerOrAdmin, uploadMiddleWare, updatePost);
 
 // Borrar un Post: Verifica que haya un Token y luego que sea el Propietario o un Admin/Superadmin
 router.delete('/:id', verifyToken, verifyPostOwnerOrAdmin, deletePost);

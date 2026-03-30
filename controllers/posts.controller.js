@@ -231,3 +231,76 @@ export const deletePost = async (req, res) => {
     return res.status(500).json({ error: 'Error del servidor al eliminar el post' });
   }
 };
+
+// Actualizar un Post (PUT /api/posts/:id)
+export const updatePost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, duration_days, country_id, city_id, category_id } = req.body;
+    const user_id = req.user.id;
+
+    // 1. Verificar si el post existe y obtener datos actuales
+    const postCheck = await pool.query('SELECT * FROM posts WHERE id = $1', [id]);
+    if (postCheck.rowCount === 0) {
+      return res.status(404).json({ error: 'Aviso no encontrado' });
+    }
+
+    // 2. Manejo de imágenes (Opcional en Update)
+    let imagesJSON = postCheck.rows[0].images; // Por defecto mantenemos las viejas si no se envían nuevas
+
+    if (req.files && req.files.length > 0) {
+      const fileUploadPromises = req.files.map(file => {
+        return new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { 
+              folder: 'woho_posts',
+              transformation: [
+                { width: 1200, height: 1200, crop: 'limit', quality: 'auto' },
+                { fetch_format: 'auto' }
+              ]
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result.secure_url);
+            }
+          );
+          stream.end(file.buffer);
+        });
+      });
+
+      const uploadedImagesUrls = await Promise.all(fileUploadPromises);
+      imagesJSON = JSON.stringify(uploadedImagesUrls);
+    }
+
+    // 3. Ejecutar UPDATE
+    // Solo permitimos el update si el usuario es el dueño (user_id coincide)
+    // El middleware general también puede implementarse aparte, pero aquí añadimos seguridad extra en el query.
+    const result = await pool.query(
+      `UPDATE posts 
+       SET title = $1, description = $2, duration_days = $3, 
+           country_id = $4, city_id = $5, category_id = $6, images = $7
+       WHERE id = $8 AND user_id = $9
+       RETURNING *`,
+      [
+        title || postCheck.rows[0].title,
+        description || postCheck.rows[0].description,
+        duration_days || postCheck.rows[0].duration_days,
+        country_id || postCheck.rows[0].country_id,
+        city_id || postCheck.rows[0].city_id,
+        category_id || postCheck.rows[0].category_id,
+        imagesJSON,
+        id,
+        user_id
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(403).json({ error: 'No tienes permiso para editar este aviso' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error al actualizar post:', error);
+    res.status(500).json({ error: 'Error del servidor al actualizar el aviso' });
+  }
+};
