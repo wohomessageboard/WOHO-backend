@@ -4,14 +4,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Configuramos Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Obtener posts de forma pública (GET /api/posts) con filtros opcionales
 export const getPosts = async (req, res) => {
   try {
     const { country, city, category } = req.query;
@@ -32,7 +30,6 @@ export const getPosts = async (req, res) => {
     const values = [];
     let count = 1;
 
-    // Agregar filtros dinámicos usando JOINs y coincidencia exacta
     if (country) {
       query += ` AND c.name = $${count}`;
       values.push(country);
@@ -59,7 +56,6 @@ export const getPosts = async (req, res) => {
   }
 };
 
-// Obtener un post por ID (GET /api/posts/:id)
 export const getPostById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -81,7 +77,6 @@ export const getPostById = async (req, res) => {
       return res.status(404).json({ error: 'Post no encontrado' });
     }
 
-    // Adaptar nombres para el frontend
     const postData = result.rows[0];
     const formattedPost = {
       ...postData,
@@ -103,24 +98,20 @@ export const getPostById = async (req, res) => {
   }
 };
 
-// Crear un Post (POST /api/posts) Privado con subida de imágenes y cálculo de fecha
 export const createPost = async (req, res) => {
   try {
     const { title, description, duration_days, country_id, city_id, category_id } = req.body;
     const user_id = req.user.id;
     const user_role = req.user.role;
 
-    // Validación básica general
     if (!title || !description) {
       return res.status(400).json({ error: 'Título y descripción son obligatorios' });
     }
 
-    // Validación según Rol
     if (user_role === 'user' && !duration_days) {
       return res.status(400).json({ error: 'La duración es requerida para viajeros' });
     }
 
-    // Subir imágenes a Cloudinary usando el buffer en memoria de multer
     const fileUploadPromises = [];
 
     if (req.files && req.files.length > 0) {
@@ -149,25 +140,22 @@ export const createPost = async (req, res) => {
       }
     }
 
-    // Esperar a que se suban todas las imágenes paralelas y se generen las URLs
     const uploadedImagesUrls = await Promise.all(fileUploadPromises);
-    
-    // Lo guardamos como string JSON
+
     const imagesJSON = JSON.stringify(uploadedImagesUrls);
 
-    // Calcular la consulta dinámica para permitir Nulls en Admins
     let queryString = '';
     let queryValues = [];
 
     if (duration_days) {
-      // Tiene expiración (Users estándar o Admins que decidieron poner duración)
+
       queryString = `
         INSERT INTO posts (title, description, duration_days, expires_at, images, user_id, country_id, city_id, category_id)
         VALUES ($1, $2, $3, CURRENT_DATE + CAST($3 AS INTEGER), $4, $5, $6, $7, $8)
         RETURNING *`;
       queryValues = [title, description, duration_days, imagesJSON, user_id, country_id || null, city_id || null, category_id || null];
     } else {
-      // No tiene duración (Solo alcanzable por Admin/Superadmin debido a validación superior)
+
       queryString = `
         INSERT INTO posts (title, description, duration_days, expires_at, images, user_id, country_id, city_id, category_id)
         VALUES ($1, $2, NULL, NULL, $3, $4, $5, $6, $7)
@@ -184,12 +172,10 @@ export const createPost = async (req, res) => {
   }
 };
 
-// Obtener avisos "Para Ti" (GET /api/posts/feed)
 export const getFeed = async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    // Seleccionar posts basados en los países y ciudades que sigue el usuario
+
     const query = `
       SELECT p.id, p.title, p.description, p.duration_days, p.expires_at, p.images, p.created_at, p.is_pinned,
              u.name as author_name, c.name as country_name, ci.name as city_name, cat.name as category_name,
@@ -218,12 +204,10 @@ export const getFeed = async (req, res) => {
   }
 };
 
-// Eliminar un Post (DELETE /api/posts/:id)
 export const deletePost = async (req, res) => {
   try {
     const postId = req.params.id;
 
-    // Como el middleware ya verificó permisos y si existe, solo borramos de frente
     await pool.query('DELETE FROM posts WHERE id = $1', [postId]);
 
     return res.status(200).json({ message: 'Aviso eliminado correctamente' });
@@ -233,20 +217,17 @@ export const deletePost = async (req, res) => {
   }
 };
 
-// Actualizar un Post (PUT /api/posts/:id)
 export const updatePost = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, duration_days, country_id, city_id, category_id } = req.body;
     const user_id = req.user.id;
 
-    // 1. Verificar si el post existe y obtener datos actuales
     const postCheck = await pool.query('SELECT * FROM posts WHERE id = $1', [id]);
     if (postCheck.rowCount === 0) {
       return res.status(404).json({ error: 'Aviso no encontrado' });
     }
 
-    // 2. Manejo de imágenes (Opcional en Update)
     let imagesJSON = postCheck.rows[0].images; // Por defecto mantenemos las viejas si no se envían nuevas
 
     if (req.files && req.files.length > 0) {
@@ -273,9 +254,6 @@ export const updatePost = async (req, res) => {
       imagesJSON = JSON.stringify(uploadedImagesUrls);
     }
 
-    // 3. Ejecutar UPDATE
-    // Solo permitimos el update si el usuario es el dueño (user_id coincide)
-    // El middleware general también puede implementarse aparte, pero aquí añadimos seguridad extra en el query.
     const result = await pool.query(
       `UPDATE posts 
        SET title = $1, description = $2, duration_days = $3, 

@@ -17,7 +17,7 @@ export const getCities = async (req, res) => {
 export const getCategories = async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM categories ORDER BY id ASC');
-    // Mapearlo a key y label que espera el frontend
+
     res.json(rows.map(r => ({ ...r, label: r.name, key: r.name })));
   } catch(e) { res.status(500).json({error: e.message}); }
 };

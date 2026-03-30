@@ -1,11 +1,9 @@
 import pool from '../config/db.js';
 
-// Obtener la información del usuario logueado (GET /api/users/me)
 export const getMe = async (req, res) => {
   try {
     const { id } = req.user; // Obtenemos el id inyectado en verifyToken
 
-    // Traemos los datos omitiendo la contraseña
     const user = await pool.query(
       'SELECT id, name, email, role, avatar_url as avatar, bio, instagram_handle, phone_whatsapp, facebook_url FROM users WHERE id = $1',
       [id]
@@ -22,7 +20,6 @@ export const getMe = async (req, res) => {
   }
 };
 
-// Actualizar la información del usuario logueado (PUT /api/users/me)
 export const updateMe = async (req, res) => {
   try {
     const { id } = req.user;
@@ -48,7 +45,6 @@ export const updateMe = async (req, res) => {
   }
 };
 
-// Subir Avatar a Cloudinary (POST /api/users/me/avatar)
 export const uploadUserAvatar = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -64,12 +60,10 @@ export const uploadUserAvatar = async (req, res) => {
       });
     }
 
-    // Subir el buffer a Cloudinary usando la función auxiliar
     const { uploadToCloudinary } = await import('../config/cloudinary.js');
     const result = await uploadToCloudinary(req.file.buffer);
     const secureUrl = result.secure_url;
 
-    // Guardar la URL en la base de datos
     const { rows } = await pool.query(
       `UPDATE users SET avatar_url = $1 WHERE id = $2 RETURNING avatar_url as avatar`,
       [secureUrl, userId]
@@ -88,13 +82,11 @@ export const uploadUserAvatar = async (req, res) => {
   }
 };
 
-// Agregar un post a favoritos (POST /api/users/me/favorites/:postId)
 export const addFavorite = async (req, res) => {
   try {
     const userId = req.user.id;
     const { postId } = req.params;
 
-    // Insertamos la relación de forma única para index compuesto
     await pool.query(
       'INSERT INTO favorites (user_id, post_id) VALUES ($1, $2) ON CONFLICT (user_id, post_id) DO NOTHING',
       [userId, postId]
@@ -107,7 +99,6 @@ export const addFavorite = async (req, res) => {
   }
 };
 
-// Obtener mis posts publicados (GET /api/users/me/posts)
 export const getMyPosts = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -130,7 +121,6 @@ export const getMyPosts = async (req, res) => {
   }
 };
 
-// Obtener mis posts favoritos (GET /api/users/me/favorites)
 export const getFavorites = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -147,7 +137,7 @@ export const getFavorites = async (req, res) => {
       ORDER BY p.created_at DESC
     `;
     const result = await pool.query(query, [userId]);
-    // Simplificar array eliminando columnas redundantes o dejando igual
+
     return res.status(200).json(result.rows);
   } catch (error) {
     console.error('Error al obtener favoritos:', error);
@@ -155,7 +145,6 @@ export const getFavorites = async (req, res) => {
   }
 };
 
-// Eliminar un post de favoritos (DELETE /api/users/me/favorites/:postId)
 export const removeFavorite = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -177,10 +166,6 @@ export const removeFavorite = async (req, res) => {
   }
 };
 
-// ==========================================
-// SEGUIMIENTO DE DESTINOS (User Follows)
-// ==========================================
-
 export const getFollows = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -201,8 +186,7 @@ export const addFollowCountry = async (req, res) => {
   try {
     const userId = req.user.id;
     const { countryId } = req.params;
-    
-    // Postgres trata NULL != NULL en constraints, así que evaluamos manualmente para evitar dups x país
+
     const check = await pool.query(
       'SELECT 1 FROM user_follows WHERE user_id=$1 AND country_id=$2 AND city_id IS NULL', 
       [userId, countryId]

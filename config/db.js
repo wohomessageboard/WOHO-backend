@@ -5,8 +5,6 @@ dotenv.config();
 
 const { Pool } = pg;
 
-// Si existe DATABASE_URL (entorno de Render/Supabase), usamos esa cadena y activamos SSL
-// porque las bases de datos en la nube no te dejan entrar puramente por IP sin encriptación.
 const poolConfig = process.env.DATABASE_URL 
   ? {
       connectionString: process.env.DATABASE_URL,
@@ -25,7 +23,6 @@ const poolConfig = process.env.DATABASE_URL
 
 const pool = new Pool(poolConfig);
 
-// Comprobamos la conexión
 pool.query('SELECT NOW()', (err, res) => {
   if (err) {
     console.error('Error conectando a la base de datos', err);

@@ -1,10 +1,5 @@
 import pool from '../config/db.js';
 
-// ========================
-// 👥 GESTIÓN DE USUARIOS
-// ========================
-
-// GET /api/admin/users
 export const getUsers = async (req, res) => {
   try {
     const result = await pool.query('SELECT id, name, email, created_at, role, is_active FROM users ORDER BY created_at DESC');
@@ -14,7 +9,6 @@ export const getUsers = async (req, res) => {
   }
 };
 
-// PUT /api/admin/users/:id/role
 export const changeUserRole = async (req, res) => {
   try {
     const { id } = req.params;
@@ -33,11 +27,10 @@ export const changeUserRole = async (req, res) => {
   }
 };
 
-// PUT /api/admin/users/:id/ban
 export const banUser = async (req, res) => {
   try {
     const { id } = req.params;
-    // Soft Delete: invertimos el booleano actual
+
     const result = await pool.query('UPDATE users SET is_active = NOT is_active WHERE id = $1 RETURNING id, is_active', [id]);
     if (result.rowCount === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
 
@@ -47,7 +40,6 @@ export const banUser = async (req, res) => {
   }
 };
 
-// DELETE /api/admin/users/:id
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -60,12 +52,6 @@ export const deleteUser = async (req, res) => {
   }
 };
 
-
-// ========================
-// 🌍 GESTIÓN DE PAÍSES
-// ========================
-
-// POST /api/admin/countries
 export const createCountry = async (req, res) => {
   try {
     const { name, flag, description, image } = req.body;
@@ -81,7 +67,6 @@ export const createCountry = async (req, res) => {
   }
 };
 
-// PUT /api/admin/countries/:id
 export const updateCountry = async (req, res) => {
   try {
     const { id } = req.params;
@@ -99,7 +84,6 @@ export const updateCountry = async (req, res) => {
   }
 };
 
-// DELETE /api/admin/countries/:id
 export const deleteCountry = async (req, res) => {
   try {
     const { id } = req.params;
@@ -112,11 +96,6 @@ export const deleteCountry = async (req, res) => {
   }
 };
 
-// ========================
-// 🏙️ GESTIÓN DE CIUDADES
-// ========================
-
-// POST /api/admin/cities
 export const createCity = async (req, res) => {
   try {
     const { name, country_id } = req.body;
@@ -129,7 +108,6 @@ export const createCity = async (req, res) => {
   }
 };
 
-// PUT /api/admin/cities/:id
 export const updateCity = async (req, res) => {
   try {
     const { id } = req.params;
@@ -144,7 +122,6 @@ export const updateCity = async (req, res) => {
   }
 };
 
-// DELETE /api/admin/cities/:id
 export const deleteCity = async (req, res) => {
   try {
     const { id } = req.params;
@@ -157,11 +134,6 @@ export const deleteCity = async (req, res) => {
   }
 };
 
-// ========================
-// 🗂️ GESTIÓN DE CATEGORÍAS
-// ========================
-
-// POST /api/admin/categories
 export const createCategory = async (req, res) => {
   try {
     const { name } = req.body;
@@ -174,7 +146,6 @@ export const createCategory = async (req, res) => {
   }
 };
 
-// DELETE /api/admin/categories/:id
 export const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
@@ -187,11 +158,6 @@ export const deleteCategory = async (req, res) => {
   }
 };
 
-// ========================
-// 🚨 MODERACIÓN DE POSTS
-// ========================
-
-// GET /api/admin/posts
 export const getAdminPosts = async (req, res) => {
   try {
     const query = `
@@ -207,15 +173,13 @@ export const getAdminPosts = async (req, res) => {
   }
 };
 
-// POST /api/admin/posts (Crear Post sin Expiración)
 export const createAdminPost = async (req, res) => {
   try {
     const { title, description, country_id, city_id, category_id, images } = req.body;
     const user_id = req.user.id;
 
     if (!title || !description) return res.status(400).json({ error: 'Título y descripción obligatorios' });
-    
-    // duration_days es null y expires_at es null (infinito)
+
     const result = await pool.query(
       `INSERT INTO posts (title, description, duration_days, expires_at, images, user_id, country_id, city_id, category_id, is_pinned)
        VALUES ($1, $2, NULL, NULL, $3, $4, $5, $6, $7, true)
@@ -229,7 +193,6 @@ export const createAdminPost = async (req, res) => {
   }
 };
 
-// PUT /api/admin/posts/:id/pin
 export const pinPost = async (req, res) => {
   try {
     const { id } = req.params;
@@ -242,7 +205,6 @@ export const pinPost = async (req, res) => {
   }
 };
 
-// DELETE /api/admin/posts/:id (Moderación Directa sin comprobar dueño)
 export const deleteAdminPost = async (req, res) => {
   try {
     const { id } = req.params;
@@ -255,14 +217,9 @@ export const deleteAdminPost = async (req, res) => {
   }
 };
 
-// ========================
-// 📊 ESTADÍSTICAS VIP
-// ========================
-
-// GET /api/admin/stats
 export const getStats = async (req, res) => {
   try {
-    // Para simplificar, hacemos múltiples consultas en paralelo
+
     const usersCount = pool.query('SELECT COUNT(*) FROM users');
     const countriesCount = pool.query('SELECT COUNT(*) FROM countries');
     const activePostsCount = pool.query('SELECT COUNT(*) FROM posts WHERE expires_at >= CURRENT_DATE OR expires_at IS NULL');
