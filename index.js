@@ -12,8 +12,23 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ==========================================
+// CONFIGURACIÓN DE SEGURIDAD CORS PARA PRODUCCIÓN
+// ==========================================
+// PELIGRO DE CORS ABIERTO (*):
+// Si usáramos app.use(cors()) sin opciones, el valor de 'origin' por defecto es '*'.
+// Esto significa que CUALQUIER página web en el mundo (incluyendo scripts de dominios maliciosos)
+// podría hacer peticiones directas (HTTP Requests) hacia esta API de WOHO, intentar suplantar
+// llamadas o hacer ataques tipo Cross-Site Request Forgery (CSRF). 
+// Al restringirlo estrictamente a nuestro FRONTEND_URL oficial (el de Vercel/Netlify),
+// el navegador del atacante bloqueará la lectura de respuestas para proteger los datos de nuestros usuarios viajeros.
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173', // Permitir solo a nuestra App React oficial
+  optionsSuccessStatus: 200 // Compatibilidad para navegadores muy viejos (SmartTVs antiguos)
+};
+
 // Middlewares Globales
-app.use(cors());          // Permitir llamadas CORS para conexión entre el Front y el Back
+app.use(cors(corsOptions));
 app.use(express.json());  // Para parsear el body JSON
 
 // Registrar las Rutas
