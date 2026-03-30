@@ -36,24 +36,14 @@ const storage = multer.memoryStorage();
 // Se usa como middleware en la ruta: router.post('/me/avatar', uploadAvatar.single('avatar'), controlador)
 export const uploadAvatar = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // Límite de 5 MB (5 * 1024 KB * 1024 bytes)
+  limits: { fileSize: 10 * 1024 * 1024 }, // Aumentamos a 10MB para que el servidor reciba, luego comprimimos
   fileFilter: (req, file, cb) => {
     // Convertimos a minúsculas por seguridad
     const mime = file.mimetype.toLowerCase();
-    // Aceptamos variaciones comunes de PNG y JPG que algunos navegadores antiguos o sistemas envían
-    const allowed = [
-      'image/jpeg', 
-      'image/jpg', 
-      'image/png', 
-      'image/x-png', 
-      'image/pjpeg', 
-      'image/webp'
-    ];
-
-    if (allowed.includes(mime)) {
+    if (mime.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Formato no permitido. Solo JPG, PNG o WEBP.'));
+      cb(new Error('Formato no permitido. Solo imágenes (JPG, PNG, WEBP, etc.).'));
     }
   }
 });
@@ -68,7 +58,10 @@ export const uploadToCloudinary = (buffer) => {
     const stream = cloudinary.uploader.upload_stream(
       {
         folder: 'woho_avatars',  // Carpeta en Cloudinary donde se guardan los avatars
-        transformation: [{ width: 500, height: 500, crop: 'limit' }]  // Redimensionar para ahorrar espacio
+        transformation: [
+          { width: 500, height: 500, crop: 'limit', quality: 'auto' }, // Redimensionar y comprimir
+          { fetch_format: 'auto' } // Formato óptimo (WebP)
+        ]
       },
       (error, result) => {
         // Este callback se ejecuta cuando Cloudinary termina de procesar la imagen

@@ -9,14 +9,15 @@ const storage = multer.memoryStorage();
 export const uploadMiddleWare = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5 MB límite por archivo
+    fileSize: 10 * 1024 * 1024 // Aumentamos a 10 MB para dar margen a la compresión en la nube
   },
   fileFilter: (req, file, cb) => {
-    // Verificamos el mimetype de la imagen para permitir solo algunos tipos
-    if (file.mimetype.startsWith('image/')) {
+    // Convertimos a minúsculas y aceptamos cualquier tipo de imagen común
+    const mime = file.mimetype.toLowerCase();
+    if (mime.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Formato de archivo no soportado, solo se aceptan imágenes.'), false);
+      cb(new Error('Formato no soportado. Solo se permiten imágenes (JPG, PNG, WEBP, etc.).'));
     }
   }
-}).array('images', 4); // Limita hasta 4 imágenes llamadas 'images'
+}).array('images', 5); // Permitimos hasta 5 fotos por anuncio

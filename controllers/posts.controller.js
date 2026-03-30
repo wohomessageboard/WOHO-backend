@@ -126,7 +126,13 @@ export const createPost = async (req, res) => {
       for (const file of req.files) {
         const uploadPromise = new Promise((resolve, reject) => {
           const stream = cloudinary.uploader.upload_stream(
-            { folder: 'woho_posts' },
+            { 
+              folder: 'woho_posts',
+              transformation: [
+                { width: 1200, height: 1200, crop: 'limit', quality: 'auto' }, // Redimensionar si es gigante
+                { fetch_format: 'auto' } // Entregar en formato óptimo (WebP si es posible)
+              ]
+            },
             (error, result) => {
               if (error) {
                 console.error('Fallo carga en Cloudinary:', error);
