@@ -48,6 +48,34 @@ export const updateMe = async (req, res) => {
   }
 };
 
+// Subir Avatar a Cloudinary (POST /api/users/me/avatar)
+export const uploadUserAvatar = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    // Multer + Cloudinary ya procesaron e interceptaron la foto antes de llegar aquí.
+    // Nos regalan la URL segura directa en req.file.path
+    if (!req.file || !req.file.path) {
+      return res.status(400).json({ error: 'No se envió ninguna imagen o hubo un error al procesarla' });
+    }
+
+    const secureUrl = req.file.path;
+
+    // Guardar en la base de datos (PostgreSQL) la nueva URL del avatar
+    const { rows } = await pool.query(
+      `UPDATE users SET avatar_url = $1 WHERE id = $2 RETURNING avatar_url as avatar`,
+      [secureUrl, userId]
+    );
+
+    return res.status(200).json({ 
+      message: 'Avatar actualizado con éxito', 
+      avatar: rows[0].avatar 
+    });
+  } catch (error) {
+    console.error('Error subiendo avatar:', error);
+    return res.status(500).json({ error: 'Error del servidor al subir avatar a Cloudinary' });
+  }
+};
+
 // Agregar un post a favoritos (POST /api/users/me/favorites/:postId)
 export const addFavorite = async (req, res) => {
   try {
