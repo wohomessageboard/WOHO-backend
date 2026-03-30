@@ -26,19 +26,19 @@ export const getMe = async (req, res) => {
 export const updateMe = async (req, res) => {
   try {
     const { id } = req.user;
-    const { name, bio, instagram_handle } = req.body;
+    const { name, bio, instagram_handle, phone_whatsapp, facebook_url } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Debes enviar al menos el nombre para actualizar' });
     }
 
-    // Actualizamos el registro retornando los nuevos datos
     const updatedUser = await pool.query(
       `UPDATE users 
-       SET name = $1, bio = COALESCE($2, bio), instagram_handle = COALESCE($3, instagram_handle) 
-       WHERE id = $4 
-       RETURNING id, name, email, role, bio, instagram_handle`,
-      [name, bio || null, instagram_handle || null, id]
+       SET name = $1, bio = COALESCE($2, bio), instagram_handle = COALESCE($3, instagram_handle),
+           phone_whatsapp = COALESCE($4, phone_whatsapp), facebook_url = COALESCE($5, facebook_url)
+       WHERE id = $6 
+       RETURNING id, name, email, role, bio, instagram_handle, phone_whatsapp, facebook_url, avatar_url as avatar`,
+      [name, bio || null, instagram_handle || null, phone_whatsapp || null, facebook_url || null, id]
     );
 
     return res.status(200).json(updatedUser.rows[0]);
@@ -52,15 +52,17 @@ export const updateMe = async (req, res) => {
 export const uploadUserAvatar = async (req, res) => {
   try {
     const userId = req.user.id;
-    // Multer + Cloudinary ya procesaron e interceptaron la foto antes de llegar aquí.
-    // Nos regalan la URL segura directa en req.file.path
-    if (!req.file || !req.file.path) {
-      return res.status(400).json({ error: 'No se envió ninguna imagen o hubo un error al procesarla' });
+
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ error: 'No se envió ninguna imagen o el formato no es válido' });
     }
 
-    const secureUrl = req.file.path;
+    // Subir el buffer a Cloudinary usando la función auxiliar
+    const { uploadToCloudinary } = await import('../config/cloudinary.js');
+    const result = await uploadToCloudinary(req.file.buffer);
+    const secureUrl = result.secure_url;
 
-    // Guardar en la base de datos (PostgreSQL) la nueva URL del avatar
+    // Guardar la URL en la base de datos
     const { rows } = await pool.query(
       `UPDATE users SET avatar_url = $1 WHERE id = $2 RETURNING avatar_url as avatar`,
       [secureUrl, userId]
@@ -72,7 +74,10 @@ export const uploadUserAvatar = async (req, res) => {
     });
   } catch (error) {
     console.error('Error subiendo avatar:', error);
-    return res.status(500).json({ error: 'Error del servidor al subir avatar a Cloudinary' });
+    if (error.message && error.message.includes('Formato')) {
+      return res.status(400).json({ error: error.message });
+    }
+    return res.status(500).json({ error: `Error al subir avatar: ${error.message || 'Error desconocido de Cloudinary'}` });
   }
 };
 
