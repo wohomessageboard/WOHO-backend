@@ -2,7 +2,7 @@ import pool from '../config/db.js';
 
 export const getMe = async (req, res) => {
   try {
-    const { id } = req.user; // Obtenemos el id inyectado en verifyToken
+    const { id } = req.user;
 
     const user = await pool.query(
       'SELECT id, name, email, role, avatar_url as avatar, bio, instagram_handle, phone_whatsapp, facebook_url FROM users WHERE id = $1',

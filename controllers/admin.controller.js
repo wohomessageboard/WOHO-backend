@@ -12,7 +12,7 @@ export const getUsers = async (req, res) => {
 export const changeUserRole = async (req, res) => {
   try {
     const { id } = req.params;
-    const { role } = req.body; // 'user', 'admin', 'superadmin'
+    const { role } = req.body;
 
     if (!['user', 'admin', 'superadmin'].includes(role)) {
       return res.status(400).json({ error: 'Rol inválido' });

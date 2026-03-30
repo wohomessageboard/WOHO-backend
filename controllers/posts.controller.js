@@ -121,8 +121,8 @@ export const createPost = async (req, res) => {
             { 
               folder: 'woho_posts',
               transformation: [
-                { width: 1200, height: 1200, crop: 'limit', quality: 'auto' }, // Redimensionar si es gigante
-                { fetch_format: 'auto' } // Entregar en formato óptimo (WebP si es posible)
+                { width: 1200, height: 1200, crop: 'limit', quality: 'auto' },
+                { fetch_format: 'auto' }
               ]
             },
             (error, result) => {
@@ -130,11 +130,11 @@ export const createPost = async (req, res) => {
                 console.error('Fallo carga en Cloudinary:', error);
                 reject(error);
               } else {
-                resolve(result.secure_url); // Guardamos la URL segura que nos da Cloudinary
+                resolve(result.secure_url);
               }
             }
           );
-          stream.end(file.buffer); // Pasar la imagen en memoria hacia la nube
+          stream.end(file.buffer);
         });
         fileUploadPromises.push(uploadPromise);
       }
@@ -228,7 +228,7 @@ export const updatePost = async (req, res) => {
       return res.status(404).json({ error: 'Aviso no encontrado' });
     }
 
-    let imagesJSON = postCheck.rows[0].images; // Por defecto mantenemos las viejas si no se envían nuevas
+    let imagesJSON = postCheck.rows[0].images;
 
     if (req.files && req.files.length > 0) {
       const fileUploadPromises = req.files.map(file => {

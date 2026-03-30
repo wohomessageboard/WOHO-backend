@@ -8,7 +8,7 @@ router.use(verifyToken, verifyRole(['admin', 'superadmin']));
 
 router.get('/users', admin.getUsers);
 router.put('/users/:id/role', admin.changeUserRole);
-router.put('/users/:id/ban', admin.banUser); // Soft delete permitido para admin y superadmin
+router.put('/users/:id/ban', admin.banUser);
 
 router.delete('/users/:id', verifyRole(['superadmin']), admin.deleteUser);
 

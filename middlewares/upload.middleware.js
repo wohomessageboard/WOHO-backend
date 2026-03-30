@@ -5,7 +5,7 @@ const storage = multer.memoryStorage();
 export const uploadMiddleWare = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // Aumentamos a 10 MB para dar margen a la compresión en la nube
+    fileSize: 10 * 1024 * 1024
   },
   fileFilter: (req, file, cb) => {
 
@@ -16,4 +16,4 @@ export const uploadMiddleWare = multer({
       cb(new Error('Formato no soportado. Solo se permiten imágenes (JPG, PNG, WEBP, etc.).'));
     }
   }
-}).array('images', 5); // Permitimos hasta 5 fotos por anuncio
+}).array('images', 5);
