@@ -7,7 +7,7 @@ export const getMe = async (req, res) => {
 
     // Traemos los datos omitiendo la contraseña
     const user = await pool.query(
-      'SELECT id, name, email, role, avatar_url as avatar, bio, instagram_handle FROM users WHERE id = $1',
+      'SELECT id, name, email, role, avatar_url as avatar, bio, instagram_handle, phone_whatsapp, facebook_url FROM users WHERE id = $1',
       [id]
     );
 
