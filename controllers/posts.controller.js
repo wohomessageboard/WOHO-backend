@@ -205,15 +205,31 @@ export const getFeed = async (req, res) => {
 };
 
 export const deletePost = async (req, res) => {
+  const client = await pool.connect();
   try {
     const postId = req.params.id;
 
-    await pool.query('DELETE FROM posts WHERE id = $1', [postId]);
+    await client.query('BEGIN');
 
-    return res.status(200).json({ message: 'Aviso eliminado correctamente' });
+    // 1. Borramos las referencias en favoritos para evitar error de FK
+    await client.query('DELETE FROM user_favorites WHERE post_id = $1', [postId]);
+
+    // 2. Borramos el post
+    const result = await client.query('DELETE FROM posts WHERE id = $1', [postId]);
+
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Post no encontrado' });
+    }
+
+    await client.query('COMMIT');
+    return res.status(200).json({ message: 'Aviso eliminado correctamente y limpiado de favoritos' });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error en deletePost:', error);
     return res.status(500).json({ error: 'Error del servidor al eliminar el post' });
+  } finally {
+    client.release();
   }
 };
 
