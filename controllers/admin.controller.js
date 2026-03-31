@@ -85,14 +85,33 @@ export const updateCountry = async (req, res) => {
 };
 
 export const deleteCountry = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM countries WHERE id = $1', [id]);
-    if (result.rowCount === 0) return res.status(404).json({ error: 'País no encontrado' });
+    await client.query('BEGIN');
 
-    res.json({ message: 'País eliminado con éxito. Los posts asociados ahora tienen null en country_id.' });
+    // 1. Ponemos en NULL el country_id de los posts asociados
+    await client.query('UPDATE posts SET country_id = NULL, city_id = NULL WHERE country_id = $1', [id]);
+
+    // 2. Borramos las ciudades asociadas a este país
+    await client.query('DELETE FROM cities WHERE country_id = $1', [id]);
+
+    // 3. Borramos el país
+    const result = await client.query('DELETE FROM countries WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'País no encontrado' });
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'País y sus dependencias eliminadas con éxito.' });
   } catch (error) {
-    res.status(500).json({ error: 'Error al eliminar país' });
+    await client.query('ROLLBACK');
+    console.error('Error al eliminar país:', error);
+    res.status(500).json({ error: 'Error del servidor al eliminar país' });
+  } finally {
+    client.release();
   }
 };
 
@@ -123,14 +142,30 @@ export const updateCity = async (req, res) => {
 };
 
 export const deleteCity = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM cities WHERE id = $1', [id]);
-    if (result.rowCount === 0) return res.status(404).json({ error: 'Ciudad no encontrada' });
+    await client.query('BEGIN');
 
-    res.json({ message: 'Ciudad eliminada' });
+    // 1. Ponemos en NULL el city_id de los posts asociados
+    await client.query('UPDATE posts SET city_id = NULL WHERE city_id = $1', [id]);
+
+    // 2. Borramos la ciudad
+    const result = await client.query('DELETE FROM cities WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Ciudad no encontrada' });
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Ciudad eliminada correctamente' });
   } catch (error) {
-    res.status(500).json({ error: 'Error al eliminar ciudad' });
+    await client.query('ROLLBACK');
+    console.error('Error al eliminar ciudad:', error);
+    res.status(500).json({ error: 'Error del servidor al eliminar ciudad' });
+  } finally {
+    client.release();
   }
 };
 
@@ -147,14 +182,30 @@ export const createCategory = async (req, res) => {
 };
 
 export const deleteCategory = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM categories WHERE id = $1', [id]);
-    if (result.rowCount === 0) return res.status(404).json({ error: 'Categoría no encontrada' });
+    await client.query('BEGIN');
 
-    res.json({ message: 'Categoría eliminada' });
+    // 1. Ponemos en NULL el category_id de los posts asociados
+    await client.query('UPDATE posts SET category_id = NULL WHERE category_id = $1', [id]);
+
+    // 2. Borramos la categoría
+    const result = await client.query('DELETE FROM categories WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Categoría no encontrada' });
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Categoría eliminada con éxito' });
   } catch (error) {
-    res.status(500).json({ error: 'Error al eliminar categoría' });
+    await client.query('ROLLBACK');
+    console.error('Error al eliminar categoría:', error);
+    res.status(500).json({ error: 'Error del servidor al eliminar categoría' });
+  } finally {
+    client.release();
   }
 };
 
