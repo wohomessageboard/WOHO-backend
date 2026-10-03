@@ -1,5 +1,6 @@
 import pool from '../config/db.js';
 import { destroyImagesByUrls, imageUrlsFrom } from '../config/cloudinary.js';
+import { removeUserAccount } from '../services/accounts.js';
 
 // Nombres de catálogo: sin espacios sobrantes ni dobles, y únicos sin importar mayúsculas.
 const cleanName = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -62,16 +63,8 @@ export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Fotos de sus avisos y su avatar, para no dejarlas huérfanas en Cloudinary.
-    const posts = await pool.query('SELECT images FROM posts WHERE user_id = $1', [id]);
-    const avatar = await pool.query('SELECT avatar_url FROM users WHERE id = $1', [id]);
-    const urls = posts.rows.flatMap((r) => imageUrlsFrom(r.images));
-    if (avatar.rows[0]?.avatar_url) urls.push(avatar.rows[0].avatar_url);
-
-    const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
-    if (result.rowCount === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
-
-    await destroyImagesByUrls(urls);
+    // Borra la cuenta, sus avisos y sus fotos de Cloudinary.
+    if (!(await removeUserAccount(id))) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     res.json({ message: 'Usuario eliminado definitivamente de la base de datos' });
   } catch (error) {
@@ -405,5 +398,59 @@ export const resolveInboxMessage = async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: 'Error al actualizar el mensaje' });
+  }
+};
+
+// ---- Solicitudes de eliminación de cuenta -----------------------------------
+export const getDeletionRequests = async (req, res) => {
+  try {
+    const { status = 'pending' } = req.query;
+    const values = [];
+    let where = '';
+    if (['pending', 'completed', 'cancelled'].includes(status)) { values.push(status); where = 'WHERE status = $1'; }
+
+    const result = await pool.query(
+      `SELECT id, user_id, user_name, user_email, status, requested_at, due_at, completed_at
+       FROM deletion_requests ${where}
+       ORDER BY (status = 'pending') DESC, due_at ASC
+       LIMIT 200`,
+      values
+    );
+    const pending = await pool.query("SELECT COUNT(*)::int AS n FROM deletion_requests WHERE status = 'pending'");
+    res.json({ items: result.rows, pending_count: pending.rows[0].n });
+  } catch (error) {
+    console.error('Error en getDeletionRequests:', error);
+    res.status(500).json({ error: 'Error al cargar las solicitudes' });
+  }
+};
+
+// Ejecuta la eliminación: borra la cuenta (avisos y fotos incluidos) y deja la solicitud
+// como constancia SIN datos personales (nombre y correo se borran).
+export const executeDeletionRequest = async (req, res) => {
+  try {
+    const request = await pool.query("SELECT id, user_id FROM deletion_requests WHERE id = $1 AND status = 'pending'", [req.params.id]);
+    if (request.rowCount === 0) return res.status(404).json({ error: 'Solicitud no encontrada o ya resuelta' });
+
+    const { id, user_id } = request.rows[0];
+
+    const target = await pool.query('SELECT role FROM users WHERE id = $1', [user_id]);
+    if (target.rows[0]?.role === 'superadmin') {
+      return res.status(403).json({ error: 'Una cuenta superadmin no se elimina desde aquí.' });
+    }
+    if (user_id === req.user.id) {
+      return res.status(400).json({ error: 'No puedes ejecutar la eliminación de tu propia cuenta desde el panel.' });
+    }
+
+    await removeUserAccount(user_id);
+
+    await pool.query(
+      `UPDATE deletion_requests SET status = 'completed', completed_at = now(), completed_by = $2, user_name = NULL, user_email = NULL
+       WHERE id = $1`,
+      [id, req.user.id]
+    );
+    res.json({ message: 'Cuenta eliminada con sus avisos y fotos.' });
+  } catch (error) {
+    console.error('Error en executeDeletionRequest:', error);
+    res.status(500).json({ error: 'No se pudo eliminar la cuenta' });
   }
 };

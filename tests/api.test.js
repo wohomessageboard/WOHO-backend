@@ -138,4 +138,41 @@ describe('🚀 Tests de API REST WOHO', () => {
     expect(res.text).toContain('og:title');
     expect(res.text).toContain('http-equiv="refresh"');
   });
+
+  it('14. Recuperar contraseña no revela si un correo tiene cuenta', async () => {
+    const real = await request(app).post('/api/auth/forgot-password').send({ email: 'testuser123@woho.com' });
+    const fake = await request(app).post('/api/auth/forgot-password').send({ email: 'nadie-existe-xyz@woho.com' });
+    expect(real.statusCode).toBe(200);
+    expect(fake.statusCode).toBe(200);
+    expect(real.body.message).toBe(fake.body.message);
+
+    const bad = await request(app).post('/api/auth/reset-password').send({ token: 'x'.repeat(64), password: 'una-clave-larga' });
+    expect(bad.statusCode).toBe(400);
+  });
+
+  it('15. Eliminar mi cuenta exige sesión y contraseña; la bandeja de eliminaciones es solo del admin', async () => {
+    const noAuth = await request(app).post('/api/users/me/delete-request').send({ password: 'x' });
+    expect(noAuth.statusCode).toBe(401);
+
+    const noPass = await request(app).post('/api/users/me/delete-request').set('Authorization', `Bearer ${userToken}`).send({});
+    expect(noPass.statusCode).toBe(400);
+
+    const wrong = await request(app).post('/api/users/me/delete-request').set('Authorization', `Bearer ${userToken}`).send({ password: 'incorrecta' });
+    expect(wrong.statusCode).toBe(401);
+
+    const list = await request(app).get('/api/admin/deletion-requests').set('Authorization', `Bearer ${userToken}`);
+    expect(list.statusCode).toBe(403);
+  });
+
+  it('16. El resumen diario está protegido con CRON_SECRET', async () => {
+    const prev = process.env.CRON_SECRET;
+    delete process.env.CRON_SECRET;
+    const disabled = await request(app).post('/api/cron/daily-digest');
+    expect(disabled.statusCode).toBe(401);
+
+    process.env.CRON_SECRET = 'secreto-de-prueba';
+    const wrong = await request(app).post('/api/cron/daily-digest').set('Authorization', 'Bearer otro');
+    expect(wrong.statusCode).toBe(401);
+    if (prev === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = prev;
+  });
 });

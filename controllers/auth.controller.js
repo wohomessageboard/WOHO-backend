@@ -1,9 +1,12 @@
 import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import pool from '../config/db.js';
+import { sendMail } from '../services/mailer.js';
 
 // Un solo correo, sin importar mayúsculas ni espacios: "Ana@X.com " y "ana@x.com" son la misma cuenta.
 export const normalizeEmail = (value) => String(value ?? '').trim().toLowerCase();
+export const MIN_PASSWORD = 8;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const register = async (req, res) => {
@@ -17,6 +20,10 @@ export const register = async (req, res) => {
 
     if (!EMAIL_RE.test(email)) {
       return res.status(400).json({ error: 'Escribe un correo válido' });
+    }
+
+    if (String(password).length < MIN_PASSWORD) {
+      return res.status(400).json({ error: `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres` });
     }
 
     const exists = await pool.query('SELECT id FROM users WHERE lower(email) = $1', [email]);
@@ -99,5 +106,92 @@ export const login = async (req, res) => {
   } catch (error) {
     console.error('Error en login:', error);
     return res.status(500).json({ error: 'Error del servidor al iniciar sesión' });
+  }
+};
+
+// ---- Recuperar contraseña -------------------------------------------------------
+// 1) forgotPassword: siempre responde lo mismo exista o no el correo (para no revelar quién
+//    tiene cuenta). Si existe, envía un enlace de un solo uso que vence en 1 hora.
+// 2) resetPassword: valida el código, cambia la contraseña y lo invalida.
+// El código viaja solo por correo; en la base se guarda su hash (SHA-256).
+const RESET_MINUTES = 60;
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+// Límite en memoria: 3 solicitudes por hora por IP y por correo (evita gastar el cupo de
+// correos y el acoso a una persona).
+const resetHits = new Map();
+const tooManyResets = (key) => {
+  const now = Date.now();
+  const recent = (resetHits.get(key) || []).filter((t) => now - t < 60 * 60 * 1000);
+  if (recent.length >= 3) { resetHits.set(key, recent); return true; }
+  recent.push(now);
+  resetHits.set(key, recent);
+  return false;
+};
+
+const GENERIC_FORGOT = { message: 'Si ese correo tiene una cuenta, te enviamos un enlace para crear una contraseña nueva. Revisa tu bandeja (y el spam). Vale por 1 hora.' };
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Escribe un correo válido' });
+
+    if (tooManyResets(`ip:${req.ip}`) || tooManyResets(`mail:${email}`)) {
+      return res.status(429).json({ error: 'Pediste varios enlaces seguidos. Espera un rato e inténtalo de nuevo.' });
+    }
+
+    const found = await pool.query('SELECT id, name, is_active FROM users WHERE lower(email) = $1', [email]);
+    if (found.rowCount > 0 && found.rows[0].is_active) {
+      const token = crypto.randomBytes(32).toString('hex');
+      await pool.query('DELETE FROM password_resets WHERE user_id = $1 AND used_at IS NULL', [found.rows[0].id]);
+      await pool.query(
+        `INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1, $2, now() + make_interval(mins => $3))`,
+        [found.rows[0].id, hashToken(token), RESET_MINUTES]
+      );
+
+      const link = `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')}/restablecer?token=${token}`;
+      try {
+        await sendMail({
+          to: email,
+          subject: 'Crea una contraseña nueva en WOHO',
+          text: `Hola ${found.rows[0].name},\n\nPediste cambiar tu contraseña. Abre este enlace (vale por 1 hora y se usa una sola vez):\n\n${link}\n\nSi no fuiste tú, ignora este correo: tu contraseña no cambia.`,
+        });
+      } catch (mailError) {
+        // No se le cuenta a quien consulta si el envío falló (sería revelar que el correo existe).
+        console.error('No se pudo enviar el correo de recuperación:', mailError.message);
+      }
+    }
+
+    return res.status(200).json(GENERIC_FORGOT);
+  } catch (error) {
+    console.error('Error en forgotPassword:', error);
+    return res.status(500).json({ error: 'No pudimos procesar tu solicitud. Intenta de nuevo.' });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || typeof token !== 'string') return res.status(400).json({ error: 'El enlace no es válido.' });
+    if (!password || String(password).length < MIN_PASSWORD) {
+      return res.status(400).json({ error: `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres` });
+    }
+
+    const found = await pool.query(
+      'SELECT id, user_id FROM password_resets WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()',
+      [hashToken(token)]
+    );
+    if (found.rowCount === 0) {
+      return res.status(400).json({ error: 'El enlace venció o ya se usó. Pide uno nuevo.' });
+    }
+
+    const hashed = await bcryptjs.hash(password, await bcryptjs.genSalt(10));
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, found.rows[0].user_id]);
+    await pool.query('UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL', [found.rows[0].user_id]);
+
+    return res.status(200).json({ message: 'Listo, cambiaste tu contraseña. Ya puedes iniciar sesión.' });
+  } catch (error) {
+    console.error('Error en resetPassword:', error);
+    return res.status(500).json({ error: 'No pudimos cambiar la contraseña. Intenta de nuevo.' });
   }
 };

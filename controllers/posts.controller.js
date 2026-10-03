@@ -26,6 +26,7 @@ export const getPosts = async (req, res) => {
       LEFT JOIN cities ci ON p.city_id = ci.id
       LEFT JOIN categories cat ON p.category_id = cat.id
       WHERE p.is_active = true 
+        AND u.deletion_requested_at IS NULL
         AND (p.expires_at >= CURRENT_DATE OR p.expires_at IS NULL)
     `;
 
@@ -231,6 +232,7 @@ export const getFeed = async (req, res) => {
       LEFT JOIN cities ci ON p.city_id = ci.id
       LEFT JOIN categories cat ON p.category_id = cat.id
       WHERE p.is_active = true
+        AND u.deletion_requested_at IS NULL
         AND (p.expires_at >= CURRENT_DATE OR p.expires_at IS NULL)
         AND EXISTS (
           SELECT 1 FROM user_follows uf
@@ -433,7 +435,7 @@ export const contactPost = async (req, res) => {
     const found = await pool.query(
       `SELECT p.id, p.title, p.user_id, u.phone_whatsapp
        FROM posts p JOIN users u ON u.id = p.user_id
-       WHERE p.id = $1 AND p.is_active = true AND (p.expires_at >= CURRENT_DATE OR p.expires_at IS NULL)`,
+       WHERE p.id = $1 AND p.is_active = true AND u.deletion_requested_at IS NULL AND (p.expires_at >= CURRENT_DATE OR p.expires_at IS NULL)`,
       [postId]
     );
     if (found.rowCount === 0) return res.status(404).json({ error: 'Este aviso ya no está disponible' });

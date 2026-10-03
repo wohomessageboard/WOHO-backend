@@ -27,7 +27,8 @@ export const sharePost = async (req, res) => {
          FROM posts p
          LEFT JOIN countries c ON c.id = p.country_id
          LEFT JOIN cities ci ON ci.id = p.city_id
-         WHERE p.id = $1 AND p.is_active = true AND (p.expires_at >= CURRENT_DATE OR p.expires_at IS NULL)`,
+         JOIN users u ON u.id = p.user_id
+         WHERE p.id = $1 AND p.is_active = true AND u.deletion_requested_at IS NULL AND (p.expires_at >= CURRENT_DATE OR p.expires_at IS NULL)`,
         [id]
       );
       if (result.rowCount > 0) {

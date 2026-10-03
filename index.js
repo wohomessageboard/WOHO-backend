@@ -8,6 +8,7 @@ import adminRoutes from './routes/admin.routes.js';
 import dataRoutes from './routes/data.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import shareRoutes from './routes/share.routes.js';
+import cronRoutes from './routes/cron.routes.js';
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/posts', postsRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/share', shareRoutes);
+app.use('/api/cron', cronRoutes);
 app.use('/api', dataRoutes);
 
 app.use('/api/admin', adminRoutes);

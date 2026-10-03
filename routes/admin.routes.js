@@ -35,4 +35,8 @@ router.get('/stats', admin.getStats);
 router.get('/inbox', admin.getInbox);
 router.put('/inbox/:id/resolve', admin.resolveInboxMessage);
 
+// Solicitudes de eliminación de cuenta (sección propia del panel)
+router.get('/deletion-requests', admin.getDeletionRequests);
+router.post('/deletion-requests/:id/execute', admin.executeDeletionRequest);
+
 export default router;

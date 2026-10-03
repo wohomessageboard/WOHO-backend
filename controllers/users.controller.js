@@ -1,12 +1,17 @@
 import pool from '../config/db.js';
+import bcryptjs from 'bcryptjs';
 import { normalizePhone, PHONE_HELP } from '../utils/phone.js';
+import { DELETION_DAYS } from '../services/accounts.js';
 
 export const getMe = async (req, res) => {
   try {
     const { id } = req.user;
 
     const user = await pool.query(
-      'SELECT id, name, email, role, avatar_url as avatar, bio, instagram_handle, phone_whatsapp, facebook_url FROM users WHERE id = $1',
+      `SELECT u.id, u.name, u.email, u.role, u.avatar_url as avatar, u.bio, u.instagram_handle, u.phone_whatsapp, u.facebook_url,
+              u.deletion_requested_at,
+              (SELECT due_at FROM deletion_requests d WHERE d.user_id = u.id AND d.status = 'pending') AS deletion_due_at
+       FROM users u WHERE u.id = $1`,
       [id]
     );
 
@@ -255,5 +260,66 @@ export const removeFollowCity = async (req, res) => {
     res.status(200).json({ message: 'Ciudad dejada de seguir' });
   } catch (error) {
     res.status(500).json({ error: 'Error al dejar de seguir la ciudad' });
+  }
+};
+
+// ---- Eliminar mi cuenta -------------------------------------------------------
+// No se borra al instante: se crea una solicitud que el equipo ejecuta dentro del plazo
+// (DELETION_DAYS). Mientras tanto los avisos dejan de mostrarse y de recibir contactos.
+// Pide la contraseña para confirmar que la solicitud la hace la persona dueña de la cuenta.
+export const requestAccountDeletion = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Escribe tu contraseña para confirmar.' });
+
+    const user = await pool.query('SELECT name, email, password, role FROM users WHERE id = $1', [userId]);
+    if (user.rowCount === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (user.rows[0].role === 'superadmin') {
+      return res.status(403).json({ error: 'Una cuenta superadmin no puede solicitar su eliminación desde aquí.' });
+    }
+    if (!(await bcryptjs.compare(password, user.rows[0].password))) {
+      return res.status(401).json({ error: 'La contraseña no es correcta.' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('UPDATE users SET deletion_requested_at = COALESCE(deletion_requested_at, now()) WHERE id = $1', [userId]);
+      await client.query(
+        `INSERT INTO deletion_requests (user_id, user_name, user_email, due_at)
+         VALUES ($1, $2, $3, now() + make_interval(days => $4))
+         ON CONFLICT (user_id) WHERE status = 'pending' DO NOTHING`,
+        [userId, user.rows[0].name, user.rows[0].email, DELETION_DAYS]
+      );
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    const info = await pool.query("SELECT requested_at, due_at FROM deletion_requests WHERE user_id = $1 AND status = 'pending'", [userId]);
+    return res.status(201).json({
+      message: `Recibimos tu solicitud. Eliminaremos tu cuenta, tus avisos y tus fotos en un plazo de hasta ${DELETION_DAYS} días.`,
+      requested_at: info.rows[0].requested_at,
+      due_at: info.rows[0].due_at,
+    });
+  } catch (error) {
+    console.error('Error en requestAccountDeletion:', error);
+    return res.status(500).json({ error: 'No pudimos registrar tu solicitud. Intenta de nuevo.' });
+  }
+};
+
+export const cancelAccountDeletion = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await pool.query("UPDATE deletion_requests SET status = 'cancelled' WHERE user_id = $1 AND status = 'pending'", [userId]);
+    await pool.query('UPDATE users SET deletion_requested_at = NULL WHERE id = $1', [userId]);
+    return res.status(200).json({ message: 'Cancelaste la solicitud. Tu cuenta sigue activa.' });
+  } catch (error) {
+    console.error('Error en cancelAccountDeletion:', error);
+    return res.status(500).json({ error: 'No pudimos cancelar la solicitud.' });
   }
 };
