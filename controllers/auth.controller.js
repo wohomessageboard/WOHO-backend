@@ -2,15 +2,24 @@ import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from '../config/db.js';
 
+// Un solo correo, sin importar mayúsculas ni espacios: "Ana@X.com " y "ana@x.com" son la misma cuenta.
+export const normalizeEmail = (value) => String(value ?? '').trim().toLowerCase();
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
+    const email = normalizeEmail(req.body.email);
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Todos los campos son obligatorios' });
     }
 
-    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (!EMAIL_RE.test(email)) {
+      return res.status(400).json({ error: 'Escribe un correo válido' });
+    }
+
+    const exists = await pool.query('SELECT id FROM users WHERE lower(email) = $1', [email]);
     if (exists.rowCount > 0) {
       return res.status(400).json({ error: 'El correo ya está registrado' });
     }
@@ -40,6 +49,9 @@ export const register = async (req, res) => {
 
     return res.status(201).json({ token, user: userToFront });
   } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'El correo ya está registrado' });
+    }
     console.error('Error en register:', error);
     return res.status(500).json({ error: 'Error del servidor al registrar' });
   }
@@ -47,13 +59,14 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = normalizeEmail(req.body.email);
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email y contraseña son obligatorios' });
     }
 
-    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = await pool.query('SELECT * FROM users WHERE lower(email) = $1', [email]);
     if (user.rowCount === 0) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }

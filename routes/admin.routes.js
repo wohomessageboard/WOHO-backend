@@ -31,4 +31,8 @@ router.delete('/posts/:id', admin.deleteAdminPost);
 
 router.get('/stats', admin.getStats);
 
+// Bandeja: reportes de avisos y mensajes de contacto
+router.get('/inbox', admin.getInbox);
+router.put('/inbox/:id/resolve', admin.resolveInboxMessage);
+
 export default router;

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getMe, updateMe, uploadUserAvatar, addFavorite, removeFavorite, getMyPosts, getFavorites, getFollows, addFollowCountry, removeFollowCountry } from '../controllers/users.controller.js';
+import { getMe, updateMe, uploadUserAvatar, addFavorite, removeFavorite, getMyPosts, getFavorites, getFollows, addFollowCountry, removeFollowCountry, addFollowCity, removeFollowCity } from '../controllers/users.controller.js';
 import { verifyToken } from '../middlewares/auth.middleware.js';
 import { uploadAvatar } from '../config/cloudinary.js';
 
@@ -18,5 +18,7 @@ router.delete('/me/favorites/:postId', verifyToken, removeFavorite);
 router.get('/me/follows', verifyToken, getFollows);
 router.post('/me/follows/countries/:countryId', verifyToken, addFollowCountry);
 router.delete('/me/follows/countries/:countryId', verifyToken, removeFollowCountry);
+router.post('/me/follows/cities/:cityId', verifyToken, addFollowCity);
+router.delete('/me/follows/cities/:cityId', verifyToken, removeFollowCity);
 
 export default router;

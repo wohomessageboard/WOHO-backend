@@ -182,26 +182,28 @@ export const getFollows = async (req, res) => {
   }
 };
 
+// Seguir es idempotente: repetir la acción no crea filas duplicadas. La unicidad la
+// garantiza la base (índices de la migración 001), no una consulta previa, así que
+// tampoco se duplica si dos peticiones llegan a la vez.
 export const addFollowCountry = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { countryId } = req.params;
+    const countryId = Number(req.params.countryId);
+    if (!Number.isInteger(countryId)) return res.status(400).json({ error: 'País inválido' });
 
-    const check = await pool.query(
-      'SELECT 1 FROM user_follows WHERE user_id=$1 AND country_id=$2 AND city_id IS NULL', 
+    const exists = await pool.query('SELECT 1 FROM countries WHERE id = $1', [countryId]);
+    if (exists.rowCount === 0) return res.status(404).json({ error: 'País no encontrado' });
+
+    await pool.query(
+      `INSERT INTO user_follows (user_id, country_id) VALUES ($1, $2)
+       ON CONFLICT (user_id, country_id) WHERE city_id IS NULL DO NOTHING`,
       [userId, countryId]
     );
-    
-    if (check.rowCount === 0) {
-      await pool.query(
-        'INSERT INTO user_follows (user_id, country_id) VALUES ($1, $2)',
-        [userId, countryId]
-      );
-    }
-    
+
     res.status(201).json({ message: 'País seguido exitosamente' });
-  } catch(error) { 
-    res.status(500).json({error: 'Error al seguir destino'}); 
+  } catch (error) {
+    console.error('Error al seguir país:', error);
+    res.status(500).json({ error: 'Error al seguir destino' });
   }
 };
 
@@ -211,7 +213,39 @@ export const removeFollowCountry = async (req, res) => {
     const { countryId } = req.params;
     await pool.query('DELETE FROM user_follows WHERE user_id = $1 AND country_id = $2 AND city_id IS NULL', [userId, countryId]);
     res.status(200).json({ message: 'País dejado de seguir' });
-  } catch(error) { 
-    res.status(500).json({error: 'Error al dejar de seguir'}); 
+  } catch (error) {
+    res.status(500).json({ error: 'Error al dejar de seguir' });
+  }
+};
+
+export const addFollowCity = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const cityId = Number(req.params.cityId);
+    if (!Number.isInteger(cityId)) return res.status(400).json({ error: 'Ciudad inválida' });
+
+    const city = await pool.query('SELECT country_id FROM cities WHERE id = $1', [cityId]);
+    if (city.rowCount === 0) return res.status(404).json({ error: 'Ciudad no encontrada' });
+
+    await pool.query(
+      `INSERT INTO user_follows (user_id, country_id, city_id) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, country_id, city_id) DO NOTHING`,
+      [userId, city.rows[0].country_id, cityId]
+    );
+
+    res.status(201).json({ message: 'Ciudad seguida exitosamente' });
+  } catch (error) {
+    console.error('Error al seguir ciudad:', error);
+    res.status(500).json({ error: 'Error al seguir ciudad' });
+  }
+};
+
+export const removeFollowCity = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await pool.query('DELETE FROM user_follows WHERE user_id = $1 AND city_id = $2', [userId, req.params.cityId]);
+    res.status(200).json({ message: 'Ciudad dejada de seguir' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al dejar de seguir la ciudad' });
   }
 };

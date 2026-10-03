@@ -6,10 +6,14 @@ import usersRoutes from './routes/users.routes.js';
 import postsRoutes from './routes/posts.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import dataRoutes from './routes/data.routes.js';
+import contactRoutes from './routes/contact.routes.js';
 
 dotenv.config();
 
 const app = express();
+
+// Detrás de un proxy (Render, Vercel...) req.ip debe ser la IP real de la persona.
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 const corsOptions = {
@@ -23,6 +27,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/posts', postsRoutes);
+app.use('/api/contact', contactRoutes);
 app.use('/api', dataRoutes);
 
 app.use('/api/admin', adminRoutes);
