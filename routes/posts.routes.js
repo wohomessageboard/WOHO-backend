@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getPosts, getPostById, createPost, updatePost, getFeed, deletePost, reportPost } from '../controllers/posts.controller.js';
+import { getPosts, getPostById, createPost, updatePost, getFeed, deletePost, reportPost, contactPost } from '../controllers/posts.controller.js';
 import { verifyToken, optionalAuth } from '../middlewares/auth.middleware.js';
 import { uploadMiddleWare } from '../middlewares/upload.middleware.js';
 import { verifyPostOwnerOrAdmin, verifyPostOwner } from '../middlewares/post.middleware.js';
@@ -20,5 +20,6 @@ router.put('/:id', verifyToken, verifyPostOwner, uploadMiddleWare, updatePost);
 router.delete('/:id', verifyToken, verifyPostOwnerOrAdmin, deletePost);
 
 router.post('/:id/report', verifyToken, reportPost);
+router.post('/:id/contact', verifyToken, contactPost);
 
 export default router;

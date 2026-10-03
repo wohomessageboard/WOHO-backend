@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { normalizePhone, PHONE_HELP } from '../utils/phone.js';
 
 export const getMe = async (req, res) => {
   try {
@@ -29,13 +30,20 @@ export const updateMe = async (req, res) => {
       return res.status(400).json({ error: 'Debes enviar al menos el nombre para actualizar' });
     }
 
+    // WhatsApp: único dato de contacto. Vacío = no se toca; con valor, debe ser válido.
+    let phone = null;
+    if (phone_whatsapp && String(phone_whatsapp).trim()) {
+      phone = normalizePhone(phone_whatsapp);
+      if (!phone) return res.status(400).json({ error: PHONE_HELP });
+    }
+
     const updatedUser = await pool.query(
       `UPDATE users 
        SET name = $1, bio = COALESCE($2, bio), instagram_handle = COALESCE($3, instagram_handle),
            phone_whatsapp = COALESCE($4, phone_whatsapp), facebook_url = COALESCE($5, facebook_url)
        WHERE id = $6 
        RETURNING id, name, email, role, bio, instagram_handle, phone_whatsapp, facebook_url, avatar_url as avatar`,
-      [name, bio || null, instagram_handle || null, phone_whatsapp || null, facebook_url || null, id]
+      [name, bio || null, instagram_handle || null, phone, facebook_url || null, id]
     );
 
     return res.status(200).json(updatedUser.rows[0]);

@@ -2,6 +2,7 @@ import request from 'supertest';
 import app from '../index.js';
 import pool from '../config/db.js';
 import { publicIdFromUrl, imageUrlsFrom } from '../config/cloudinary.js';
+import { normalizePhone } from '../utils/phone.js';
 
 describe('🚀 Tests de API REST WOHO', () => {
   beforeAll(async () => {
@@ -111,5 +112,30 @@ describe('🚀 Tests de API REST WOHO', () => {
     expect(publicIdFromUrl('https://res.cloudinary.com/x/image/upload/v1/otra_carpeta/abc.jpg')).toBeNull();
     expect(imageUrlsFrom('["a","b"]')).toEqual(['a', 'b']);
     expect(imageUrlsFrom('no es json')).toEqual([]);
+  });
+
+  it('11. WhatsApp: se normaliza a formato internacional y se rechaza sin código de país', () => {
+    expect(normalizePhone('(+56) 9-1234 5678')).toBe('+56912345678');
+    expect(normalizePhone('0056 9 1234 5678')).toBe('+56912345678');
+    expect(normalizePhone('9 1234 5678')).toBeNull();
+    expect(normalizePhone('abc')).toBeNull();
+    expect(normalizePhone('')).toBeNull();
+  });
+
+  it('12. Contactar exige sesión y publicar exige tener WhatsApp', async () => {
+    const noAuth = await request(app).post('/api/posts/1/contact');
+    expect(noAuth.statusCode).toBe(401);
+
+    const noPhone = await request(app).post('/api/posts').set('Authorization', `Bearer ${userToken}`)
+      .field('title', 't').field('description', 'd').field('duration_days', '3').field('category_id', '1');
+    expect(noPhone.statusCode).toBe(400);
+    expect(noPhone.body.code).toBe('PHONE_REQUIRED');
+  });
+
+  it('13. La tarjeta para compartir devuelve metadatos Open Graph y nunca falla', async () => {
+    const res = await request(app).get('/api/share/posts/999999');
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toContain('og:title');
+    expect(res.text).toContain('http-equiv="refresh"');
   });
 });
