@@ -23,7 +23,7 @@ export const uploadAvatar = multer({
     if (mime.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Formato no permitido. Solo imágenes (JPG, PNG, WEBP, etc.).'));
+      cb(Object.assign(new Error('Formato no permitido. Solo imágenes (JPG, PNG, WEBP, etc.).'), { status: 400 }));
     }
   }
 });

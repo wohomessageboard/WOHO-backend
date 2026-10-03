@@ -98,6 +98,18 @@ export const getPostById = async (req, res) => {
   }
 };
 
+const MAX_DURATION_DAYS = 365;
+
+// Devuelve un mensaje de error si la duración no es un entero entre 1 y 365.
+const durationError = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1 || n > MAX_DURATION_DAYS) {
+    return `La duración debe ser un número entero de días entre 1 y ${MAX_DURATION_DAYS}.`;
+  }
+  return null;
+};
+
 export const createPost = async (req, res) => {
   try {
     const { title, description, duration_days, country_id, city_id, category_id } = req.body;
@@ -108,8 +120,17 @@ export const createPost = async (req, res) => {
       return res.status(400).json({ error: 'Título y descripción son obligatorios' });
     }
 
+    if (!category_id) {
+      return res.status(400).json({ error: 'Elige una categoría para tu aviso' });
+    }
+
     if (user_role === 'user' && !duration_days) {
       return res.status(400).json({ error: 'La duración es requerida para viajeros' });
+    }
+
+    const badDuration = durationError(duration_days);
+    if (badDuration) {
+      return res.status(400).json({ error: badDuration });
     }
 
     const fileUploadPromises = [];
@@ -238,6 +259,11 @@ export const updatePost = async (req, res) => {
     const { id } = req.params;
     const { title, description, duration_days, country_id, city_id, category_id } = req.body;
     const user_id = req.user.id;
+
+    const badDuration = durationError(duration_days);
+    if (badDuration) {
+      return res.status(400).json({ error: badDuration });
+    }
 
     const postCheck = await pool.query('SELECT * FROM posts WHERE id = $1', [id]);
     if (postCheck.rowCount === 0) {
