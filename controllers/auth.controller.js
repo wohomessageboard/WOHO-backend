@@ -58,7 +58,8 @@ export const register = async (req, res) => {
       role: userData.role,
       avatar: userData.avatar_url || null,
       bio: userData.bio || null,
-      instagram_handle: userData.instagram_handle || null
+      instagram_handle: userData.instagram_handle || null,
+      terms_version: userData.terms_version || null
     };
 
     return res.status(201).json({ token, user: userToFront });
@@ -106,7 +107,8 @@ export const login = async (req, res) => {
       role: userData.role,
       avatar: userData.avatar_url || null,
       bio: userData.bio || null,
-      instagram_handle: userData.instagram_handle || null
+      instagram_handle: userData.instagram_handle || null,
+      terms_version: userData.terms_version || null
     };
 
     return res.status(200).json({ token, user: userToFront });
