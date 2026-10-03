@@ -2,6 +2,7 @@ import pool from '../config/db.js';
 import bcryptjs from 'bcryptjs';
 import { normalizePhone, PHONE_HELP } from '../utils/phone.js';
 import { DELETION_DAYS } from '../services/accounts.js';
+import { TERMS_VERSION } from '../config/legal.js';
 
 export const getMe = async (req, res) => {
   try {
@@ -9,7 +10,7 @@ export const getMe = async (req, res) => {
 
     const user = await pool.query(
       `SELECT u.id, u.name, u.email, u.role, u.avatar_url as avatar, u.bio, u.instagram_handle, u.phone_whatsapp, u.facebook_url,
-              u.deletion_requested_at,
+              u.deletion_requested_at, u.terms_version,
               (SELECT due_at FROM deletion_requests d WHERE d.user_id = u.id AND d.status = 'pending') AS deletion_due_at
        FROM users u WHERE u.id = $1`,
       [id]
@@ -321,5 +322,16 @@ export const cancelAccountDeletion = async (req, res) => {
   } catch (error) {
     console.error('Error en cancelAccountDeletion:', error);
     return res.status(500).json({ error: 'No pudimos cancelar la solicitud.' });
+  }
+};
+
+// ---- Aceptar los términos vigentes (cuentas anteriores o cuando cambian) --------------
+export const acceptTerms = async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET terms_accepted_at = now(), terms_version = $1 WHERE id = $2', [TERMS_VERSION, req.user.id]);
+    return res.status(200).json({ terms_version: TERMS_VERSION });
+  } catch (error) {
+    console.error('Error en acceptTerms:', error);
+    return res.status(500).json({ error: 'No pudimos registrar tu aceptación.' });
   }
 };

@@ -20,7 +20,8 @@ describe('🚀 Tests de API REST WOHO', () => {
     const response = await request(app).post('/api/auth/register').send({
       name: 'Test User',
       email: 'testuser123@woho.com',
-      password: 'password_test'
+      password: 'password_test',
+      accepted_terms: true
     });
 
     expect(response.statusCode).toBe(201);
@@ -174,5 +175,15 @@ describe('🚀 Tests de API REST WOHO', () => {
     const wrong = await request(app).post('/api/cron/daily-digest').set('Authorization', 'Bearer otro');
     expect(wrong.statusCode).toBe(401);
     if (prev === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = prev;
+  });
+
+  it('17. Registrarse exige aceptar los términos', async () => {
+    const res = await request(app).post('/api/auth/register').send({
+      name: 'Sin Aceptar',
+      email: 'sin-aceptar-xyz@woho.com',
+      password: 'password_test',
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toMatch(/Términos/);
   });
 });

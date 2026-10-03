@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import pool from '../config/db.js';
 import { sendMail } from '../services/mailer.js';
+import { TERMS_VERSION } from '../config/legal.js';
 
 // Un solo correo, sin importar mayúsculas ni espacios: "Ana@X.com " y "ana@x.com" son la misma cuenta.
 export const normalizeEmail = (value) => String(value ?? '').trim().toLowerCase();
@@ -11,7 +12,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const register = async (req, res) => {
   try {
-    const { name, password } = req.body;
+    const { name, password, accepted_terms } = req.body;
     const email = normalizeEmail(req.body.email);
 
     if (!name || !email || !password) {
@@ -20,6 +21,10 @@ export const register = async (req, res) => {
 
     if (!EMAIL_RE.test(email)) {
       return res.status(400).json({ error: 'Escribe un correo válido' });
+    }
+
+    if (accepted_terms !== true) {
+      return res.status(400).json({ error: 'Para crear tu cuenta debes aceptar los Términos y Condiciones y la Política de Privacidad' });
     }
 
     if (String(password).length < MIN_PASSWORD) {
@@ -35,8 +40,10 @@ export const register = async (req, res) => {
     const hashedPassword = await bcryptjs.hash(password, salt);
 
     const newUser = await pool.query(
-      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role, avatar_url, bio, instagram_handle',
-      [name, email, hashedPassword, 'user']
+      `INSERT INTO users (name, email, password, role, terms_accepted_at, terms_version)
+       VALUES ($1, $2, $3, $4, now(), $5)
+       RETURNING id, name, email, role, avatar_url, bio, instagram_handle, terms_version`,
+      [name, email, hashedPassword, 'user', TERMS_VERSION]
     );
 
     const userData = newUser.rows[0];
