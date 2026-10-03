@@ -5,7 +5,7 @@ import { sendMail, mailConfigured } from './mailer.js';
 // solicitudes de eliminación. Si no hay nada, no se envía. Es seguro llamarlo varias
 // veces: cada elemento se avisa una sola vez y hay un mínimo de ~20 h entre envíos.
 const MIN_HOURS_BETWEEN = 20;
-const REASONS = { spam: 'Spam', estafa: 'Posible estafa', ofensivo: 'Contenido ofensivo', falso: 'Información falsa', otro: 'Otro' };
+const REASONS = { spam: 'Spam', estafa: 'Posible estafa', ofensivo: 'Contenido ofensivo', falso: 'Información falsa', copyright: 'Derechos de autor', otro: 'Otro' };
 
 const short = (s, n = 140) => String(s ?? '').replace(/\s+/g, ' ').slice(0, n);
 

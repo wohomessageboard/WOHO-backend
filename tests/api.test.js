@@ -21,7 +21,8 @@ describe('🚀 Tests de API REST WOHO', () => {
       name: 'Test User',
       email: 'testuser123@woho.com',
       password: 'password_test',
-      accepted_terms: true
+      accepted_terms: true,
+      confirmed_age: true
     });
 
     expect(response.statusCode).toBe(201);
@@ -182,8 +183,20 @@ describe('🚀 Tests de API REST WOHO', () => {
       name: 'Sin Aceptar',
       email: 'sin-aceptar-xyz@woho.com',
       password: 'password_test',
+      confirmed_age: true,
     });
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toMatch(/Términos/);
+  });
+
+  it('18. Registrarse exige confirmar la mayoría de edad', async () => {
+    const res = await request(app).post('/api/auth/register').send({
+      name: 'Sin Edad',
+      email: 'sin-edad-xyz@woho.com',
+      password: 'password_test',
+      accepted_terms: true,
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toMatch(/años/);
   });
 });

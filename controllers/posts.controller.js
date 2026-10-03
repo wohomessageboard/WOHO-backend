@@ -373,7 +373,7 @@ export const updatePost = async (req, res) => {
 
 // ---- Reportar un aviso ------------------------------------------------------
 // Llega a la bandeja del panel de admin (tabla inbox_messages, kind = 'report').
-const REPORT_REASONS = ['spam', 'estafa', 'ofensivo', 'falso', 'otro'];
+const REPORT_REASONS = ['spam', 'estafa', 'ofensivo', 'falso', 'copyright', 'otro'];
 
 export const reportPost = async (req, res) => {
   try {
