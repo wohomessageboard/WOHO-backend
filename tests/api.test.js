@@ -22,9 +22,10 @@ describe('🚀 Tests de API REST WOHO', () => {
     });
 
     expect(response.statusCode).toBe(201);
-    
-    expect(response.body).toHaveProperty('id');
-    expect(response.body).toHaveProperty('email', 'testuser123@woho.com');
+
+    expect(response.body).toHaveProperty('token');
+    expect(response.body.user).toHaveProperty('id');
+    expect(response.body.user).toHaveProperty('email', 'testuser123@woho.com');
   });
 
   it('2. Login devuelve un 200 y el token JWT', async () => {

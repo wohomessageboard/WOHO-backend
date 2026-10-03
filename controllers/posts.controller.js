@@ -212,7 +212,7 @@ export const deletePost = async (req, res) => {
     await client.query('BEGIN');
 
     // 1. Borramos las referencias en favoritos para evitar error de FK
-    await client.query('DELETE FROM user_favorites WHERE post_id = $1', [postId]);
+    await client.query('DELETE FROM favorites WHERE post_id = $1', [postId]);
 
     // 2. Borramos el post
     const result = await client.query('DELETE FROM posts WHERE id = $1', [postId]);
