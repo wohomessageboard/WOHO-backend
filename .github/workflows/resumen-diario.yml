@@ -1,0 +1,21 @@
+# Dispara una vez al día el resumen por correo para el admin (máx. 1 correo al día).
+# Configuración (GitHub → Settings → Secrets and variables → Actions → New repository secret):
+#   WOHO_API_URL   dirección del backend, p. ej. https://api.tudominio.com   (sin barra final)
+#   CRON_SECRET    el mismo valor que la variable CRON_SECRET del servidor
+# Los workflows programados solo corren desde la rama por defecto (main).
+name: Resumen diario al admin
+
+on:
+  schedule:
+    - cron: '0 12 * * *'   # 12:00 UTC todos los días (ajusta la hora si quieres)
+  workflow_dispatch:        # también se puede lanzar a mano desde la pestaña Actions
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar al endpoint del resumen
+        run: |
+          curl --fail --silent --show-error --max-time 60 \
+            -X POST "${{ secrets.WOHO_API_URL }}/api/cron/daily-digest" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
