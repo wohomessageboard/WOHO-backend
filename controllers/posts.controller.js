@@ -110,14 +110,22 @@ export const getPostById = async (req, res) => {
   }
 };
 
-const MAX_DURATION_DAYS = 365;
+// Los avisos caducan para que lo que se lee sea siempre información vigente. Las personas
+// usuarias pueden publicar hasta 30 días (1 mes). Solo el equipo (admin) puede publicar por
+// más tiempo (hasta 365 días) o sin caducidad (sin indicar duración).
+export const MAX_USER_DURATION_DAYS = 30;
+export const MAX_ADMIN_DURATION_DAYS = 365;
+const isAdminRole = (role) => role === 'admin' || role === 'superadmin';
 
-// Devuelve un mensaje de error si la duración no es un entero entre 1 y 365.
-const durationError = (value) => {
+// Devuelve un mensaje de error si la duración no es válida para ese rol.
+const durationError = (value, role) => {
   if (value === undefined || value === null || value === '') return null;
+  const max = isAdminRole(role) ? MAX_ADMIN_DURATION_DAYS : MAX_USER_DURATION_DAYS;
   const n = Number(value);
-  if (!Number.isInteger(n) || n < 1 || n > MAX_DURATION_DAYS) {
-    return `La duración debe ser un número entero de días entre 1 y ${MAX_DURATION_DAYS}.`;
+  if (!Number.isInteger(n) || n < 1 || n > max) {
+    return isAdminRole(role)
+      ? `La duración debe ser un número entero de días entre 1 y ${max}.`
+      : `Un aviso puede durar entre 1 y ${max} días. Así lo que se publica en WOHO siempre está vigente.`;
   }
   return null;
 };
@@ -146,7 +154,7 @@ export const createPost = async (req, res) => {
       return res.status(400).json({ error: 'La duración es requerida para viajeros' });
     }
 
-    const badDuration = durationError(duration_days);
+    const badDuration = durationError(duration_days, user_role);
     if (badDuration) {
       return res.status(400).json({ error: badDuration });
     }
@@ -300,14 +308,24 @@ export const updatePost = async (req, res) => {
     const { title, description, duration_days, country_id, city_id, category_id } = req.body;
     const user_id = req.user.id;
 
-    const badDuration = durationError(duration_days);
-    if (badDuration) {
-      return res.status(400).json({ error: badDuration });
-    }
-
     const postCheck = await pool.query('SELECT * FROM posts WHERE id = $1', [id]);
     if (postCheck.rowCount === 0) {
       return res.status(404).json({ error: 'Aviso no encontrado' });
+    }
+
+    // Duración: solo se valida y recalcula el vencimiento si la persona la cambió. Así un
+    // aviso antiguo de más de 30 días puede editarse sin tocar su duración. El vencimiento
+    // siempre cuenta desde la fecha de creación, así que no se puede alargar un aviso más
+    // allá del máximo permitido (para eso hay que publicar uno nuevo).
+    const wanted = duration_days === undefined || duration_days === null || duration_days === '' ? null : Number(duration_days);
+    const changesDuration = wanted !== null && wanted !== postCheck.rows[0].duration_days;
+    if (changesDuration) {
+      const badDuration = durationError(wanted, req.user.role);
+      if (badDuration) return res.status(400).json({ error: badDuration });
+      const { rows: [{ vencido }] } = await pool.query('SELECT (created_at::date + $1::int) < CURRENT_DATE AS vencido FROM posts WHERE id = $2', [wanted, id]);
+      if (vencido) {
+        return res.status(400).json({ error: 'Con esa duración el aviso ya habría caducado. Elige una duración mayor.' });
+      }
     }
 
     let imagesJSON = postCheck.rows[0].images;
@@ -341,19 +359,21 @@ export const updatePost = async (req, res) => {
     const result = await pool.query(
       `UPDATE posts 
        SET title = $1, description = $2, duration_days = $3, 
-           country_id = $4, city_id = $5, category_id = $6, images = $7
+           country_id = $4, city_id = $5, category_id = $6, images = $7,
+           expires_at = CASE WHEN $10::boolean THEN created_at::date + $3::int ELSE expires_at END
        WHERE id = $8 AND user_id = $9
        RETURNING *`,
       [
         title || postCheck.rows[0].title,
         description || postCheck.rows[0].description,
-        duration_days || postCheck.rows[0].duration_days,
+        changesDuration ? wanted : postCheck.rows[0].duration_days,
         country_id || postCheck.rows[0].country_id,
         city_id || postCheck.rows[0].city_id,
         category_id || postCheck.rows[0].category_id,
         imagesJSON,
         id,
-        user_id
+        user_id,
+        changesDuration
       ]
     );
 

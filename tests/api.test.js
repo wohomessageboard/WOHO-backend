@@ -245,4 +245,77 @@ describe('🚀 Tests de API REST WOHO', () => {
       delete process.env.RATE_LIMIT_DISABLED;
     }
   });
+
+  describe('Caducidad de los avisos', () => {
+    const createdIds = [];
+    const publish = (token, duration) => {
+      const r = request(app).post('/api/posts').set('Authorization', `Bearer ${token}`)
+        .field('title', 'Aviso de prueba de caducidad').field('description', 'd').field('category_id', '1');
+      return duration === undefined ? r : r.field('duration_days', String(duration));
+    };
+
+    beforeAll(async () => {
+      await request(app).put('/api/users/me').set('Authorization', `Bearer ${userToken}`)
+        .send({ name: 'Test User', phone_whatsapp: '+56912345678' });
+    });
+
+    afterAll(async () => {
+      if (createdIds.length) await pool.query('DELETE FROM posts WHERE id = ANY($1::int[])', [createdIds]);
+      await pool.query("UPDATE users SET role = 'user' WHERE email = 'testuser123@woho.com'");
+    });
+
+    it('24. Una persona usuaria puede publicar hasta 30 días, no más', async () => {
+      const tooLong = await publish(userToken, 31);
+      expect(tooLong.statusCode).toBe(400);
+      expect(tooLong.body.error).toMatch(/30 días/);
+
+      const ok = await publish(userToken, 30);
+      expect(ok.statusCode).toBe(201);
+      createdIds.push(ok.body.id);
+      expect(ok.body.duration_days).toBe(30);
+
+      const none = await publish(userToken);
+      expect(none.statusCode).toBe(400);
+    });
+
+    it('25. Solo el equipo (admin) puede publicar por más tiempo o sin caducidad', async () => {
+      await pool.query("UPDATE users SET role = 'admin' WHERE email = 'testuser123@woho.com'");
+      const login = await request(app).post('/api/auth/login').send({ email: 'testuser123@woho.com', password: 'password_test' });
+      const adminToken = login.body.token;
+
+      const long = await publish(adminToken, 90);
+      expect(long.statusCode).toBe(201);
+      createdIds.push(long.body.id);
+
+      const forever = await publish(adminToken);
+      expect(forever.statusCode).toBe(201);
+      createdIds.push(forever.body.id);
+      expect(forever.body.expires_at).toBeNull();
+
+      const tooLong = await publish(adminToken, 400);
+      expect(tooLong.statusCode).toBe(400);
+    });
+
+    it('26. Al editar, la duración se valida y el vencimiento se recalcula desde la creación', async () => {
+      const created = await publish(userToken, 20);
+      expect(created.statusCode).toBe(201);
+      createdIds.push(created.body.id);
+      const id = created.body.id;
+
+      const bad = await request(app).put(`/api/posts/${id}`).set('Authorization', `Bearer ${userToken}`).field('duration_days', '31');
+      expect(bad.statusCode).toBe(400);
+
+      const ok = await request(app).put(`/api/posts/${id}`).set('Authorization', `Bearer ${userToken}`).field('duration_days', '7');
+      expect(ok.statusCode).toBe(200);
+      const row = await pool.query("SELECT duration_days, (expires_at::date - created_at::date) AS dias FROM posts WHERE id = $1", [id]);
+      expect(row.rows[0].duration_days).toBe(7);
+      expect(Number(row.rows[0].dias)).toBe(7);
+
+      // Un aviso antiguo de más de 30 días se puede editar sin tocar su duración.
+      await pool.query('UPDATE posts SET duration_days = 60 WHERE id = $1', [id]);
+      const legacy = await request(app).put(`/api/posts/${id}`).set('Authorization', `Bearer ${userToken}`)
+        .field('title', 'Título nuevo').field('duration_days', '60');
+      expect(legacy.statusCode).toBe(200);
+    });
+  });
 });
