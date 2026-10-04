@@ -2,6 +2,7 @@ import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import pool from '../config/db.js';
+import { frontendUrl } from '../config/urls.js';
 import { sendMail } from '../services/mailer.js';
 import { TERMS_VERSION, MIN_AGE } from '../config/legal.js';
 
@@ -162,7 +163,7 @@ export const forgotPassword = async (req, res) => {
         [found.rows[0].id, hashToken(token), RESET_MINUTES]
       );
 
-      const link = `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')}/restablecer?token=${token}`;
+      const link = `${frontendUrl()}/restablecer?token=${token}`;
       try {
         await sendMail({
           to: email,

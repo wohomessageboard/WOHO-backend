@@ -9,6 +9,7 @@ import dataRoutes from './routes/data.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import shareRoutes from './routes/share.routes.js';
 import cronRoutes from './routes/cron.routes.js';
+import { frontendOrigins } from './config/urls.js';
 
 dotenv.config();
 
@@ -18,9 +19,13 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
+// FRONTEND_URL admite varias direcciones separadas por coma (p. ej. el dominio propio
+// y el de vercel.app); ver config/urls.js.
+const allowedOrigins = frontendOrigins();
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173', 
-  optionsSuccessStatus: 200 
+  origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
@@ -52,7 +57,8 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.status && err.status < 500 ? err.message : 'Error interno del servidor' });
 });
 
-if (process.env.NODE_ENV !== 'test') {
+// En Vercel la app corre como función (api/index.js): ahí no se abre un puerto.
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   app.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));
 }
 

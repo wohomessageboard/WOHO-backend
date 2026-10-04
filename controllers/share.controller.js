@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { frontendUrl } from '../config/urls.js';
 import { imageUrlsFrom } from '../config/cloudinary.js';
 
 // Página mínima que WhatsApp, Telegram, etc. leen para armar la tarjeta ("embed") del
@@ -12,7 +13,7 @@ const LOGO = 'https://res.cloudinary.com/dpxpixlpl/image/upload/v1772886330/WOHO
 const cardImage = (url) => (/\/upload\//.test(url) ? url.replace('/upload/', '/upload/c_fill,g_auto,w_1200,h_630,q_auto,f_jpg/') : url);
 
 export const sharePost = async (req, res) => {
-  const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
+  const frontend = frontendUrl();
   const id = Number(req.params.id);
   const target = Number.isInteger(id) ? `${frontend}/post/${id}` : frontend;
 

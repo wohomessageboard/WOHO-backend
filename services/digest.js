@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { frontendUrl } from '../config/urls.js';
 import { sendMail, mailConfigured } from './mailer.js';
 
 // Resumen diario para el admin: UN solo correo al día con lo nuevo de la bandeja y las
@@ -37,7 +38,7 @@ export const sendDailyDigest = async () => {
 
   const reports = inbox.rows.filter((r) => r.kind === 'report');
   const contacts = inbox.rows.filter((r) => r.kind === 'contact');
-  const panel = `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')}/admin-dashboard`;
+  const panel = `${frontendUrl()}/admin-dashboard`;
 
   const lines = [];
   lines.push(`Novedades de WOHO (${new Date().toLocaleDateString('es')}):`, '');

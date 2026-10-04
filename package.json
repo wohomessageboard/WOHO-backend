@@ -7,6 +7,8 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "migrate": "node database/migrate.js",
+    "seed": "node database/migrate.js --seed",
+    "make-admin": "node database/make-admin.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles"
   },
   "keywords": [],
