@@ -6,6 +6,7 @@ import { clientIp } from '../utils/clientIp.js';
 import { frontendUrl } from '../config/urls.js';
 import { sendMail } from '../services/mailer.js';
 import { TERMS_VERSION, MIN_AGE } from '../config/legal.js';
+import { normalizePhone } from '../utils/phone.js';
 
 // Un solo correo, sin importar mayúsculas ni espacios: "Ana@X.com " y "ana@x.com" son la misma cuenta.
 export const normalizeEmail = (value) => String(value ?? '').trim().toLowerCase();
@@ -14,7 +15,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const register = async (req, res) => {
   try {
-    const { name, password, accepted_terms, confirmed_age } = req.body;
+    const { name, password, accepted_terms, confirmed_age, phone_whatsapp } = req.body;
     const email = normalizeEmail(req.body.email);
 
     if (!name || !email || !password) {
@@ -37,6 +38,12 @@ export const register = async (req, res) => {
       return res.status(400).json({ error: `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres` });
     }
 
+    // El contacto entre personas es solo por WhatsApp, así que se pide desde el registro.
+    const phone = normalizePhone(phone_whatsapp);
+    if (!phone) {
+      return res.status(400).json({ error: 'Escribe tu WhatsApp con código de país, por ejemplo +56 9 1234 5678', code: 'PHONE_REQUIRED' });
+    }
+
     const exists = await pool.query('SELECT id FROM users WHERE lower(email) = $1', [email]);
     if (exists.rowCount > 0) {
       return res.status(400).json({ error: 'El correo ya está registrado' });
@@ -46,10 +53,10 @@ export const register = async (req, res) => {
     const hashedPassword = await bcryptjs.hash(password, salt);
 
     const newUser = await pool.query(
-      `INSERT INTO users (name, email, password, role, terms_accepted_at, terms_version, age_confirmed_at)
-       VALUES ($1, $2, $3, $4, now(), $5, now())
-       RETURNING id, name, email, role, avatar_url, bio, instagram_handle, terms_version`,
-      [name, email, hashedPassword, 'user', TERMS_VERSION]
+      `INSERT INTO users (name, email, password, role, terms_accepted_at, terms_version, age_confirmed_at, phone_whatsapp)
+       VALUES ($1, $2, $3, $4, now(), $5, now(), $6)
+       RETURNING id, name, email, role, avatar_url, bio, instagram_handle, terms_version, phone_whatsapp`,
+      [name, email, hashedPassword, 'user', TERMS_VERSION, phone]
     );
 
     const userData = newUser.rows[0];
@@ -65,6 +72,7 @@ export const register = async (req, res) => {
       avatar: userData.avatar_url || null,
       bio: userData.bio || null,
       instagram_handle: userData.instagram_handle || null,
+      phone_whatsapp: userData.phone_whatsapp || null,
       terms_version: userData.terms_version || null
     };
 

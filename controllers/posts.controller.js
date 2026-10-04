@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { frontendUrl } from '../config/urls.js';
 import { v2 as cloudinary } from 'cloudinary';
 import dotenv from 'dotenv';
 import { destroyImagesByUrls, imageUrlsFrom } from '../config/cloudinary.js';
@@ -478,7 +479,8 @@ export const contactPost = async (req, res) => {
 
     await pool.query('INSERT INTO post_contacts (post_id, user_id) VALUES ($1, $2)', [postId, req.user.id]);
 
-    const shareUrl = `${publicApiUrl(req)}/share/posts/${postId}`;
+    // El enlace usa el dominio del sitio (/p/:id lo reenvía al servidor): así no se ve como una dirección rara.
+    const shareUrl = `${frontendUrl()}/p/${postId}`;
     const text = `Hola, vi tu aviso «${post.title}» en WOHO y me interesa. ${shareUrl}`;
     return res.status(200).json({ url: `https://wa.me/${phone.slice(1)}?text=${encodeURIComponent(text)}` });
   } catch (error) {

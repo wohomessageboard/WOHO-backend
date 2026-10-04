@@ -22,7 +22,8 @@ describe('🚀 Tests de API REST WOHO', () => {
       email: 'testuser123@woho.com',
       password: 'password_test',
       accepted_terms: true,
-      confirmed_age: true
+      confirmed_age: true,
+      phone_whatsapp: '+56 9 1234 5678'
     });
 
     expect(response.statusCode).toBe(201);
@@ -128,6 +129,7 @@ describe('🚀 Tests de API REST WOHO', () => {
     const noAuth = await request(app).post('/api/posts/1/contact');
     expect(noAuth.statusCode).toBe(401);
 
+    await pool.query("UPDATE users SET phone_whatsapp = NULL WHERE email = 'testuser123@woho.com'");
     const noPhone = await request(app).post('/api/posts').set('Authorization', `Bearer ${userToken}`)
       .field('title', 't').field('description', 'd').field('duration_days', '3').field('category_id', '1');
     expect(noPhone.statusCode).toBe(400);
@@ -317,5 +319,30 @@ describe('🚀 Tests de API REST WOHO', () => {
         .field('title', 'Título nuevo').field('duration_days', '60');
       expect(legacy.statusCode).toBe(200);
     });
+  });
+
+  it('27. El registro exige un WhatsApp válido y lo guarda en formato internacional', async () => {
+    const base = { name: 'Con Telefono', email: 'con-telefono-xyz@woho.com', password: 'password_test', accepted_terms: true, confirmed_age: true };
+    const sin = await request(app).post('/api/auth/register').send(base);
+    expect(sin.statusCode).toBe(400);
+    expect(sin.body.code).toBe('PHONE_REQUIRED');
+
+    const malo = await request(app).post('/api/auth/register').send({ ...base, phone_whatsapp: '9 1234 5678' });
+    expect(malo.statusCode).toBe(400);
+
+    const ok = await request(app).post('/api/auth/register').send({ ...base, phone_whatsapp: '(+56) 9-1234 5678' });
+    try {
+      expect(ok.statusCode).toBe(201);
+      expect(ok.body.user.phone_whatsapp).toBe('+56912345678');
+    } finally {
+      await pool.query("DELETE FROM users WHERE email = 'con-telefono-xyz@woho.com'");
+    }
+  });
+
+  it('28. El enlace para compartir usa el dominio del sitio y no se indexa', async () => {
+    const res = await request(app).get('/api/share/posts/999999');
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toMatch(/og:url" content="[^"]*\/p\/999999"/);
+    expect(res.text).toContain('name="robots" content="noindex"');
   });
 });
