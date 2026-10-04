@@ -199,4 +199,50 @@ describe('🚀 Tests de API REST WOHO', () => {
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toMatch(/años/);
   });
+
+  it('19. Un id que no es número responde 404 y no un error 500', async () => {
+    const res = await request(app).get('/api/posts/mine');
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('20. Cabeceras de seguridad y sin pistas del servidor', async () => {
+    const res = await request(app).get('/health');
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+    expect(res.headers['x-powered-by']).toBeUndefined();
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('21. Un JSON mal formado responde 400 sin filtrar detalles internos', async () => {
+    const res = await request(app).post('/api/auth/login').set('Content-Type', 'application/json').send('{"email":');
+    expect(res.statusCode).toBe(400);
+    expect(JSON.stringify(res.body)).not.toMatch(/at |node_modules|Unexpected/);
+  });
+
+  it('22. El resumen diario solo se dispara con POST y con la clave', async () => {
+    const get = await request(app).get('/api/cron/daily-digest');
+    expect(get.statusCode).toBe(404);
+    const post = await request(app).post('/api/cron/daily-digest');
+    expect([401, 503]).toContain(post.statusCode);
+  });
+
+  it('23. El inicio de sesión se bloquea tras demasiados intentos fallidos', async () => {
+    process.env.RATE_LIMIT_DISABLED = '0';
+    try {
+      const ip = '203.0.113.77';
+      let last;
+      for (let i = 0; i < 11; i++) {
+        last = await request(app).post('/api/auth/login').set('CF-Connecting-IP', ip)
+          .send({ email: 'nadie@woho.com', password: 'incorrecta123' });
+      }
+      expect(last.statusCode).toBe(429);
+      expect(last.body.error).toMatch(/intentos/);
+      // Otra IP no queda afectada
+      const other = await request(app).post('/api/auth/login').set('CF-Connecting-IP', '203.0.113.78')
+        .send({ email: 'nadie@woho.com', password: 'incorrecta123' });
+      expect(other.statusCode).not.toBe(429);
+    } finally {
+      delete process.env.RATE_LIMIT_DISABLED;
+    }
+  });
 });

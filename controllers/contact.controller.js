@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { clientIp } from '../utils/clientIp.js';
 import { normalizeEmail } from './auth.controller.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,7 +30,7 @@ export const sendContactMessage = async (req, res) => {
     // Campo trampa: las personas no lo ven; los bots suelen rellenarlo. Se responde "ok" sin guardar.
     if (website) return res.status(201).json({ message: 'Mensaje enviado' });
 
-    if (tooMany(req.ip)) {
+    if (tooMany(clientIp(req))) {
       return res.status(429).json({ error: 'Has enviado varios mensajes seguidos. Intenta de nuevo más tarde.' });
     }
 
