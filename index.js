@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import usersRoutes from './routes/users.routes.js';
@@ -10,6 +11,8 @@ import contactRoutes from './routes/contact.routes.js';
 import shareRoutes from './routes/share.routes.js';
 import cronRoutes from './routes/cron.routes.js';
 import { frontendOrigins } from './config/urls.js';
+import { apiLimiter } from './middlewares/rateLimit.middleware.js';
+import { securityLog } from './middlewares/securityLog.middleware.js';
 
 dotenv.config();
 
@@ -17,6 +20,7 @@ const app = express();
 
 // Detrás de un proxy (Render, Vercel...) req.ip debe ser la IP real de la persona.
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
 const PORT = process.env.PORT || 3000;
 
 // FRONTEND_URL admite varias direcciones separadas por coma (p. ej. el dominio propio
@@ -28,8 +32,13 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+// Cabeceras de seguridad. Sin CSP aquí: la API responde JSON y la tarjeta de compartir
+// necesita su propio HTML; la CSP del sitio se gestiona en el frontend.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(securityLog);
+app.use(express.json({ limit: '100kb' }));
+app.use('/api', apiLimiter);
 
 // Para monitores de disponibilidad (UptimeRobot, etc.): responde sin consultar la base de datos.
 app.get('/health', (req, res) => res.json({ ok: true }));
@@ -51,6 +60,8 @@ app.use((req, res) => {
 // Último recurso: responde JSON y nunca expone el stack ni rutas del servidor.
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'La solicitud no tiene un formato válido' });
+  if (err.type === 'entity.too.large') return res.status(413).json({ error: 'La solicitud es demasiado grande' });
   if (err.name === 'MulterError') {
     // Avatar u otra subida sin middleware propio.
     if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'La imagen es demasiado pesada (máx. 10 MB).' });

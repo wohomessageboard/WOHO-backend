@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { verifyToken, verifyRole } from '../middlewares/auth.middleware.js';
 import * as admin from '../controllers/admin.controller.js';
+import { numericParams } from '../middlewares/params.middleware.js';
 
 const router = Router();
+numericParams(router, 'id');
 
 router.use(verifyToken, verifyRole(['admin', 'superadmin']));
 

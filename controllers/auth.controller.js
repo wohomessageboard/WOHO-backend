@@ -2,6 +2,7 @@ import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import pool from '../config/db.js';
+import { clientIp } from '../utils/clientIp.js';
 import { frontendUrl } from '../config/urls.js';
 import { sendMail } from '../services/mailer.js';
 import { TERMS_VERSION, MIN_AGE } from '../config/legal.js';
@@ -150,7 +151,7 @@ export const forgotPassword = async (req, res) => {
     const email = normalizeEmail(req.body.email);
     if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Escribe un correo válido' });
 
-    if (tooManyResets(`ip:${req.ip}`) || tooManyResets(`mail:${email}`)) {
+    if (tooManyResets(`ip:${clientIp(req)}`) || tooManyResets(`mail:${email}`)) {
       return res.status(429).json({ error: 'Pediste varios enlaces seguidos. Espera un rato e inténtalo de nuevo.' });
     }
 
