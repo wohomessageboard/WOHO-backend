@@ -16,6 +16,8 @@ export const sharePost = async (req, res) => {
   const frontend = frontendUrl();
   const id = Number(req.params.id);
   const target = Number.isInteger(id) ? `${frontend}/post/${id}` : frontend;
+  // Dirección pública del enlace compartido: el dominio del sitio, no el del servidor.
+  const shareUrl = Number.isInteger(id) ? `${frontend}/p/${id}` : frontend;
 
   let title = 'WOHO · Tablón de avisos Working Holiday';
   let description = 'Alojamiento, trabajo y compañeros de ruta de viajero a viajero.';
@@ -58,7 +60,8 @@ export const sharePost = async (req, res) => {
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:image" content="${esc(image)}">
-<meta property="og:url" content="${esc(target)}">
+<meta property="og:url" content="${esc(shareUrl)}">
+<meta name="robots" content="noindex">
 <meta name="twitter:card" content="summary_large_image">
 <meta http-equiv="refresh" content="0;url=${esc(target)}">
 <link rel="canonical" href="${esc(target)}">
