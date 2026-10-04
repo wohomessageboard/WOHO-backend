@@ -1,21 +1,25 @@
 import { Router } from 'express';
-import { getPosts, getPostById, createPost, updatePost, getFeed, deletePost } from '../controllers/posts.controller.js';
-import { verifyToken, verifyRole } from '../middlewares/auth.middleware.js';
+import { getPosts, getPostById, createPost, updatePost, getFeed, deletePost, reportPost, contactPost } from '../controllers/posts.controller.js';
+import { verifyToken, optionalAuth } from '../middlewares/auth.middleware.js';
 import { uploadMiddleWare } from '../middlewares/upload.middleware.js';
-import { verifyPostOwnerOrAdmin } from '../middlewares/post.middleware.js';
+import { verifyPostOwnerOrAdmin, verifyPostOwner } from '../middlewares/post.middleware.js';
 
 const router = Router();
 
-router.get('/', getPosts);
+router.get('/', optionalAuth, getPosts);
 
 router.get('/feed', verifyToken, getFeed);
 
-router.get('/:id', getPostById);
+router.get('/:id', optionalAuth, getPostById);
 
 router.post('/', verifyToken, uploadMiddleWare, createPost);
 
-router.put('/:id', verifyToken, verifyPostOwnerOrAdmin, uploadMiddleWare, updatePost);
+// Editar: solo quien publicó. Eliminar: quien publicó o un administrador.
+router.put('/:id', verifyToken, verifyPostOwner, uploadMiddleWare, updatePost);
 
 router.delete('/:id', verifyToken, verifyPostOwnerOrAdmin, deletePost);
+
+router.post('/:id/report', verifyToken, reportPost);
+router.post('/:id/contact', verifyToken, contactPost);
 
 export default router;

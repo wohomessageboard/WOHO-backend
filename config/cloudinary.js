@@ -23,7 +23,7 @@ export const uploadAvatar = multer({
     if (mime.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Formato no permitido. Solo imágenes (JPG, PNG, WEBP, etc.).'));
+      cb(Object.assign(new Error('Formato no permitido. Solo imágenes (JPG, PNG, WEBP, etc.).'), { status: 400 }));
     }
   }
 });
@@ -48,4 +48,39 @@ export const uploadToCloudinary = (buffer) => {
 
     stream.end(buffer);
   });
+};
+
+// ---- Limpieza de imágenes ---------------------------------------------------
+// Convierte una URL de Cloudinary en su public_id:
+//   https://res.cloudinary.com/<nube>/image/upload/v123/woho_posts/abc.jpg -> woho_posts/abc
+export const publicIdFromUrl = (url) => {
+  if (typeof url !== 'string') return null;
+  const match = url.match(/\/upload\/(?:[^/]+\/)*?(?:v\d+\/)?((?:woho_posts|woho_avatars)\/[^/.]+)\.[a-z0-9]+(?:$|\?)/i);
+  return match ? match[1] : null;
+};
+
+// Acepta el valor de la columna images (array, JSON string o null) y devuelve las URLs.
+export const imageUrlsFrom = (images) => {
+  if (!images) return [];
+  try {
+    const list = typeof images === 'string' ? JSON.parse(images) : images;
+    return Array.isArray(list) ? list.filter((u) => typeof u === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+// Borra de Cloudinary las imágenes que pertenecen a WOHO (carpetas woho_posts y
+// woho_avatars; nunca toca otras). Es "mejor esfuerzo": si Cloudinary falla se
+// registra el error pero no se interrumpe la operación del usuario.
+export const destroyImagesByUrls = async (urls = []) => {
+  const ids = [...new Set(urls.map(publicIdFromUrl).filter(Boolean))];
+  if (ids.length === 0) return { deleted: 0 };
+  try {
+    await cloudinary.api.delete_resources(ids, { resource_type: 'image' });
+    return { deleted: ids.length };
+  } catch (error) {
+    console.error('No se pudieron borrar imágenes de Cloudinary:', error?.error?.message || error?.message || error);
+    return { deleted: 0, error: true };
+  }
 };

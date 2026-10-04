@@ -10,7 +10,9 @@ const poolConfig = process.env.DATABASE_URL
       connectionString: process.env.DATABASE_URL,
       ssl: {
         rejectUnauthorized: false
-      }
+      },
+      // En Vercel cada función abre su propio pool: pocas conexiones y se sueltan pronto.
+      ...(process.env.VERCEL ? { max: 3, idleTimeoutMillis: 10000 } : {})
     }
   : {
       user: process.env.DB_USER,

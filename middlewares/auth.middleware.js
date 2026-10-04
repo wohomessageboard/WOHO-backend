@@ -36,3 +36,18 @@ export const verifyRole = (rolesPermitidos) => {
     next();
   };
 };
+
+// Como verifyToken, pero sin rechazar: si hay un token válido llena req.user; si no,
+// la petición sigue como visitante. Sirve para endpoints públicos que muestran más
+// datos a quien tiene sesión.
+export const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      req.user = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
+    } catch {
+      /* token vencido o inválido: se trata como visitante */
+    }
+  }
+  next();
+};
