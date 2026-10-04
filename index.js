@@ -31,6 +31,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Para monitores de disponibilidad (UptimeRobot, etc.): responde sin consultar la base de datos.
+app.get('/health', (req, res) => res.json({ ok: true }));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/posts', postsRoutes);
