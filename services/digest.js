@@ -41,7 +41,7 @@ export const sendDailyDigest = async () => {
   const panel = `${frontendUrl()}/admin-dashboard`;
 
   const lines = [];
-  lines.push(`Novedades de WOHO (${new Date().toLocaleDateString('es')}):`, '');
+  lines.push(`Novedades de Driftler (${new Date().toLocaleDateString('es')}):`, '');
   if (reports.length) {
     lines.push(`REPORTES NUEVOS (${reports.length})`);
     reports.forEach((r) => lines.push(`- ${REASONS[r.reason] || r.reason}: «${short(r.post_title, 80)}»${r.message ? ' — ' + short(r.message) : ''}`));
@@ -66,7 +66,7 @@ export const sendDailyDigest = async () => {
 
   await sendMail({
     to: adminEmail,
-    subject: `WOHO: ${reports.length + contacts.length} mensaje(s) y ${newRequests.rowCount + dueSoon.rowCount} solicitud(es) de eliminación`,
+    subject: `Driftler: ${reports.length + contacts.length} mensaje(s) y ${newRequests.rowCount + dueSoon.rowCount} solicitud(es) de eliminación`,
     text: lines.join('\n'),
   });
 

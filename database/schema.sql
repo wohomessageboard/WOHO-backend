@@ -1,5 +1,5 @@
 -- ==========================================
--- SCRIPT DE MIGRACIÓN: BASE DE DATOS WOHO
+-- SCRIPT DE MIGRACIÓN: BASE DE DATOS Driftler
 -- Motor: PostgreSQL
 -- ==========================================
 

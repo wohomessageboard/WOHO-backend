@@ -7,7 +7,8 @@ import { imageUrlsFrom } from '../config/cloudinary.js';
 // aplicación. No incluye nada de quien publica, solo lo que ya ve cualquier visitante.
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const LOGO = 'https://res.cloudinary.com/dpxpixlpl/image/upload/v1772886330/WOHO_logo_uxi9wo.png';
+// Imagen por defecto de la tarjeta: el ícono del sitio (se sirve desde el frontend).
+const DEFAULT_IMAGE = '/icon-512.png';
 
 // Recorte 1200x630 (el formato de las tarjetas) para fotos de Cloudinary.
 const cardImage = (url) => (/\/upload\//.test(url) ? url.replace('/upload/', '/upload/c_fill,g_auto,w_1200,h_630,q_auto,f_jpg/') : url);
@@ -19,9 +20,9 @@ export const sharePost = async (req, res) => {
   // Dirección pública del enlace compartido: el dominio del sitio, no el del servidor.
   const shareUrl = Number.isInteger(id) ? `${frontend}/p/${id}` : frontend;
 
-  let title = 'WOHO · Tablón de avisos Working Holiday';
+  let title = 'Driftler · Tablón de avisos Working Holiday';
   let description = 'Alojamiento, trabajo y compañeros de ruta de viajero a viajero.';
-  let image = LOGO;
+  let image = `${frontend}${DEFAULT_IMAGE}`;
 
   try {
     if (Number.isInteger(id)) {
@@ -37,7 +38,7 @@ export const sharePost = async (req, res) => {
       if (result.rowCount > 0) {
         const p = result.rows[0];
         const where = [p.city, p.country].filter(Boolean).join(', ');
-        title = `${p.title} · WOHO`;
+        title = `${p.title} · Driftler`;
         description = `${where ? where + ' — ' : ''}${String(p.description).replace(/\s+/g, ' ').slice(0, 160)}`;
         const first = imageUrlsFrom(p.images)[0];
         if (first) image = cardImage(first);
@@ -55,7 +56,7 @@ export const sharePost = async (req, res) => {
 <meta charset="utf-8">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
-<meta property="og:site_name" content="WOHO">
+<meta property="og:site_name" content="Driftler">
 <meta property="og:type" content="article">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
@@ -67,7 +68,7 @@ export const sharePost = async (req, res) => {
 <link rel="canonical" href="${esc(target)}">
 </head>
 <body>
-<p>Abriendo el aviso… <a href="${esc(target)}">Ir a WOHO</a></p>
+<p>Abriendo el aviso… <a href="${esc(target)}">Ir a Driftler</a></p>
 <script>location.replace(${JSON.stringify(target).replace(/</g, '\\u003c')});</script>
 </body>
 </html>`);
