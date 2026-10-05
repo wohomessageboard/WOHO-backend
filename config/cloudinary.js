@@ -70,7 +70,7 @@ export const imageUrlsFrom = (images) => {
   }
 };
 
-// Borra de Cloudinary las imágenes que pertenecen a WOHO (carpetas woho_posts y
+// Borra de Cloudinary las imágenes que pertenecen a Driftler (carpetas woho_posts y
 // woho_avatars; nunca toca otras). Es "mejor esfuerzo": si Cloudinary falla se
 // registra el error pero no se interrumpe la operación del usuario.
 export const destroyImagesByUrls = async (urls = []) => {

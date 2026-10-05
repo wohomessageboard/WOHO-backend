@@ -4,8 +4,8 @@
 //   RESEND_API_KEY   llave de Resend. Si falta, NO se envía nada: en desarrollo el correo
 //                    se imprime en la consola (así se prueba el flujo sin cuenta); en
 //                    producción se registra un aviso.
-//   MAIL_FROM        remitente verificado en Resend, p. ej. "WOHO <no-responder@tudominio.com>".
-//                    Para probar sin dominio propio sirve "WOHO <onboarding@resend.dev>"
+//   MAIL_FROM        remitente verificado en Resend, p. ej. "Driftler <no-responder@tudominio.com>".
+//                    Para probar sin dominio propio sirve "Driftler <onboarding@resend.dev>"
 //                    (Resend solo entrega a tu propio correo en ese modo).
 //
 // Para no gastar el cupo, el correo se usa solo en dos casos: recuperar contraseña y el
@@ -13,7 +13,7 @@
 export const mailConfigured = () => Boolean(process.env.RESEND_API_KEY);
 
 export const sendMail = async ({ to, subject, text, html }) => {
-  const from = process.env.MAIL_FROM || 'WOHO <onboarding@resend.dev>';
+  const from = process.env.MAIL_FROM || 'Driftler <onboarding@resend.dev>';
 
   if (!process.env.RESEND_API_KEY) {
     if (process.env.NODE_ENV === 'production') {

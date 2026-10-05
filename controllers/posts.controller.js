@@ -126,7 +126,7 @@ const durationError = (value, role) => {
   if (!Number.isInteger(n) || n < 1 || n > max) {
     return isAdminRole(role)
       ? `La duración debe ser un número entero de días entre 1 y ${max}.`
-      : `Un aviso puede durar entre 1 y ${max} días. Así lo que se publica en WOHO siempre está vigente.`;
+      : `Un aviso puede durar entre 1 y ${max} días. Así lo que se publica en Driftler siempre está vigente.`;
   }
   return null;
 };
@@ -432,7 +432,7 @@ export const reportPost = async (req, res) => {
       throw dbError;
     }
 
-    return res.status(201).json({ message: 'Gracias por avisarnos. El equipo de WOHO revisará este aviso.' });
+    return res.status(201).json({ message: 'Gracias por avisarnos. El equipo de Driftler revisará este aviso.' });
   } catch (error) {
     console.error('Error en reportPost:', error);
     return res.status(500).json({ error: 'No pudimos enviar tu reporte. Intenta de nuevo.' });
@@ -481,7 +481,7 @@ export const contactPost = async (req, res) => {
 
     // El enlace usa el dominio del sitio (/p/:id lo reenvía al servidor): así no se ve como una dirección rara.
     const shareUrl = `${frontendUrl()}/p/${postId}`;
-    const text = `Hola, vi tu aviso «${post.title}» en WOHO y me interesa. ${shareUrl}`;
+    const text = `Hola, vi tu aviso «${post.title}» en Driftler y me interesa. ${shareUrl}`;
     return res.status(200).json({ url: `https://wa.me/${phone.slice(1)}?text=${encodeURIComponent(text)}` });
   } catch (error) {
     console.error('Error en contactPost:', error);
