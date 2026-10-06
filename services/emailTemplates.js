@@ -69,13 +69,13 @@ export const resetPasswordEmail = ({ name, link, minutes = 60, logoUrl }) => {
   const body = [
     h1(`Crea una contraseña <em style="color:${C.tomato};">nueva</em>`),
     p(`Hola ${esc(name)},`),
-    p(`Pediste cambiar tu contraseña de Driftler. El enlace vale por <strong>${esc(minutes === 60 ? '1 hora' : `${minutes} minutos`)}</strong> y se usa una sola vez.`),
+    p(`Pediste cambiar tu contraseña de Driftler. El enlace es válido por <strong>${esc(minutes === 60 ? '1 hora' : `${minutes} minutos`)}</strong> y se usa una sola vez.`),
     button(link, 'Crear contraseña nueva'),
     p(`Si el botón no funciona, copia y pega esta dirección en tu navegador:`, `margin-top:18px;font-size:13px;color:${C.muted};`),
     `<p style="margin:0;font:13px/1.5 ${MONO};word-break:break-all;color:${C.deep};">${esc(link)}</p>`,
   ].join('');
   const footer = `Si no fuiste tú, ignora este correo: tu contraseña no cambia. Por seguridad, nunca te pediremos tu contraseña por correo.<br>¿Dudas? Escríbenos a <a href="mailto:hello@driftler.com" style="color:${C.deep};">hello@driftler.com</a>.`;
-  return layout({ preheader: 'El enlace para crear tu contraseña nueva vale por 1 hora.', title: 'Crea una contraseña nueva en Driftler', body, footer, logoUrl });
+  return layout({ preheader: 'El enlace para crear tu contraseña nueva es válido por 1 hora.', title: 'Crea una contraseña nueva en Driftler', body, footer, logoUrl });
 };
 
 // --- Resumen diario para el admin ---

@@ -178,7 +178,7 @@ export const forgotPassword = async (req, res) => {
         await sendMail({
           to: email,
           subject: 'Crea una contraseña nueva en Driftler',
-          text: `Hola ${found.rows[0].name},\n\nPediste cambiar tu contraseña. Abre este enlace (vale por 1 hora y se usa una sola vez):\n\n${link}\n\nSi no fuiste tú, ignora este correo: tu contraseña no cambia.`,
+          text: `Hola ${found.rows[0].name},\n\nPediste cambiar tu contraseña. Abre este enlace (es válido por 1 hora y se usa una sola vez):\n\n${link}\n\nSi no fuiste tú, ignora este correo: tu contraseña no cambia.`,
           html: resetPasswordEmail({ name: found.rows[0].name, link, minutes: RESET_MINUTES }),
         });
       } catch (mailError) {
