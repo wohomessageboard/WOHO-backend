@@ -7,7 +7,9 @@ name: Resumen diario al admin
 
 on:
   schedule:
-    - cron: '0 12 * * *'   # 12:00 UTC todos los días (ajusta la hora si quieres)
+    # 20:00 UTC = 7:00 AM en Australia oriental en horario de verano (6:00 AM en invierno, de
+    # abril a octubre). GitHub puede atrasar unos minutos las ejecuciones programadas.
+    - cron: '0 20 * * *'
   workflow_dispatch:        # también se puede lanzar a mano desde la pestaña Actions
 
 jobs:
