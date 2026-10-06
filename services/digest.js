@@ -1,6 +1,7 @@
 import pool from '../config/db.js';
 import { frontendUrl } from '../config/urls.js';
 import { sendMail, mailConfigured } from './mailer.js';
+import { dailyDigestEmail } from './emailTemplates.js';
 
 // Resumen diario para el admin: UN solo correo al día con lo nuevo de la bandeja y las
 // solicitudes de eliminación. Si no hay nada, no se envía. Es seguro llamarlo varias
@@ -68,6 +69,11 @@ export const sendDailyDigest = async () => {
     to: adminEmail,
     subject: `Driftler: ${reports.length + contacts.length} mensaje(s) y ${newRequests.rowCount + dueSoon.rowCount} solicitud(es) de eliminación`,
     text: lines.join('\n'),
+    html: dailyDigestEmail({
+      reports, contacts, newRequests: newRequests.rows, dueSoon: dueSoon.rows, panel,
+      date: new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' }),
+      reasons: REASONS, short, fmtDate: (d) => new Date(d).toLocaleDateString('es'),
+    }),
   });
 
   // Solo se marca como avisado si el envío no falló (sendMail lanza error en ese caso).

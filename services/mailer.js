@@ -4,6 +4,8 @@
 //   RESEND_API_KEY   llave de Resend. Si falta, NO se envía nada: en desarrollo el correo
 //                    se imprime en la consola (así se prueba el flujo sin cuenta); en
 //                    producción se registra un aviso.
+//   MAIL_REPLY_TO    dirección que recibe las respuestas (por defecto hello@driftler.com), porque el
+//                    remitente no-reply@ no lee nada.
 //   MAIL_FROM        remitente verificado en Resend, p. ej. "Driftler <no-responder@tudominio.com>".
 //                    Para probar sin dominio propio sirve "Driftler <onboarding@resend.dev>"
 //                    (Resend solo entrega a tu propio correo en ese modo).
@@ -14,6 +16,7 @@ export const mailConfigured = () => Boolean(process.env.RESEND_API_KEY);
 
 export const sendMail = async ({ to, subject, text, html }) => {
   const from = process.env.MAIL_FROM || 'Driftler <onboarding@resend.dev>';
+  const replyTo = process.env.MAIL_REPLY_TO || 'hello@driftler.com';
 
   if (!process.env.RESEND_API_KEY) {
     if (process.env.NODE_ENV === 'production') {
@@ -27,7 +30,7 @@ export const sendMail = async ({ to, subject, text, html }) => {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [to], subject, text, ...(html ? { html } : {}) }),
+    body: JSON.stringify({ from, to: [to], reply_to: replyTo, subject, text, ...(html ? { html } : {}) }),
   });
 
   if (!res.ok) {
